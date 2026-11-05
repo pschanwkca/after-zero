@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.12</small>
+        <small>Rift Hunter field prototype · Build 3.13</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1432,7 +1432,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.12":"裂隙獵人 實地原型 · Build 2.8","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.13":"裂隙獵人 實地原型 · Build 2.8","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -14450,9 +14450,9 @@ const Float={W:null,near:[],stand:null,prevStand:null,airVy:0,_push:0,_pf:null,r
   floorLike(W,F,x,z){if(!F.stat)return false;const h=this.base(W,x,z);return h>=F.top-.6;},
   // ---- adopting a world: layered height, offsets around the world's own update, and the scan
   adopt(W){if(W._float)return;W._float=1;const S=this.st(W);const self=this;
-    const H1=W.heightAt;W.heightAt=(x,z)=>{let h=H1(x,z);if(self.busy)return h;const pl=Game.player;if(!pl||Game.world!==W||Game.state!=='playing')return h;
+    const H1=W.heightAt;W.heightAt=(x,z)=>{const g0=self._g0;if(g0&&x===g0.x&&z===g0.z){self._g0=null;return g0.gy;}let h=H1(x,z);if(self.busy)return h;const pl=Game.player;if(!pl||Game.world!==W||Game.state!=='playing')return h;
       if(Math.abs(x-pl.pos.x)>3||Math.abs(z-pl.pos.z)>3)return h;if(typeof Cine!=='undefined'&&Cine.on)return h;const Y=(pl.gy||0)+(pl.py||0);
-      for(const F of S.mov){if((x-F.cw.x)**2+(z-F.cw.z)**2>F.r*F.r+1)continue;const t=self.topAt(F,x,z);if(t!==null&&t<=Y+.6&&t>h)h=t;}return h;};
+      for(const F of S.mov){if(!F.o.visible||(x-F.cw.x)**2+(z-F.cw.z)**2>F.r*F.r+1)continue;const t=self.topAt(F,x,z);if(t!==null&&t<=Y+.6&&t>h)h=t;}return h;};
     const U=W.update;W.update=(t,dt)=>{for(const F of S.mov)if(F.applied){F.o.position.y-=F.applied;F.applied=0;}U(t,dt);for(const F of S.mov)if(F.off){F.o.position.y+=F.off;F.applied=F.off;}};
     if(W.id==='void')try{this.stair(W);}catch(e){console.warn('stair',e);}
     // what bobs in the first moments is a floater
@@ -14500,7 +14500,7 @@ const Float={W:null,near:[],stand:null,prevStand:null,airVy:0,_push:0,_pf:null,r
     // near list (moving: all within reach; static: hashed cells around you)
     const px=pl.pos.x,pz=pl.pos.z;const nr=this.near;nr.length=0;
     for(const F of S.mov){const op=F.o.position;if((px-op.x)**2+(pz-op.z)**2<(F.r+8)**2)F.o.updateMatrixWorld(true);this.sync(F);const dRy=F.o.rotation.y-F.lastRy,dX=F.ox-F.lastX,dZ=F.oz-F.lastZ;F.lastRy=F.o.rotation.y;F.lastX=F.ox;F.lastZ=F.oz;F.dRy=dRy;F.dX=dX;F.dZ=dZ;
-      if((px-F.cw.x)**2+(pz-F.cw.z)**2<(F.r+3.5)**2)nr.push(F);}
+      if(F.o.visible&&(px-F.cw.x)**2+(pz-F.cw.z)**2<(F.r+3.5)**2)nr.push(F);}
     if(S.stat.length){S.stamp++;const R=12,ix=Math.floor(px/R),iz=Math.floor(pz/R);for(let i=ix-1;i<=ix+1;i++)for(let k=iz-1;k<=iz+1;k++){const a=S.hash.get(i+','+k);if(!a)continue;
       for(const F of a){if(F._s===S.stamp)continue;F._s=S.stamp;if((px-F.cw.x)**2+(pz-F.cw.z)**2<(F.r+3)**2&&this.vis(F.b))nr.push(F);}}}
     if(G.state!=='playing'||pl.dead){this.physics(S,dt);return;}
@@ -14598,9 +14598,154 @@ const Float={W:null,near:[],stand:null,prevStand:null,airVy:0,_push:0,_pf:null,r
     pl.speed=0;pl.animate(dt,{...B,g:[-.24,.98+.14*k,.3],lh:[.24,.98-.14*k,.3],d:[-.25,-.85,-.45],tp:.2,cr:.3,lg:.6*k,ty:.05*k,tr:0,th:0},12);}};
 window.__AZfloat=Float;
 // the Void's "is there anything under you" sees the floaters too, so a jump down onto one is a landing, not a fall
-{const un=Abyss.under.bind(Abyss);Abyss.under=function(W,x,y,z){let b=un(W,x,y,z);for(const F of (W._fl?W._fl.mov:[])){if((x-F.cw.x)**2+(z-F.cw.z)**2>F.r*F.r+1)continue;const t=Float.topAt(F,x,z);if(t!==null&&t<=y+.5&&(b===null||t>b))b=t;}return b;};}
-{const pu=Player.prototype.update;Player.prototype.update=function(dt,cam){if(!this.isAI&&this.fc){if(this.state==='fclimb'){Float.update(this,dt);return;}const s=this.state;Float.release(this,0,0);this.state=s;}return pu.call(this,dt,cam);};}
+{const un=Abyss.under.bind(Abyss);Abyss.under=function(W,x,y,z){let b=un(W,x,y,z);for(const F of (W._fl?W._fl.mov:[])){if(!F.o.visible||(x-F.cw.x)**2+(z-F.cw.z)**2>F.r*F.r+1)continue;const t=Float.topAt(F,x,z);if(t!==null&&t<=y+.5&&(b===null||t>b))b=t;}return b;};}
+{const pu=Player.prototype.update;Player.prototype.update=function(dt,cam){if(!this.isAI&&this.fc){if(this.state==='fclimb'){Float.update(this,dt);return;}const s=this.state;Float.release(this,0,0);this.state=s;}
+  // the player's update measures height change against "the ground where you were"; in the floating worlds that ground can change
+  // under you (rising past a platform's lip, a block sinking away), so it is pinned to the ground you were actually on
+  if(!this.isAI&&Game.world&&Game.world._float){Float._g0={x:this.pos.x,z:this.pos.z,gy:this.gy||0};try{return pu.call(this,dt,cam);}finally{Float._g0=null;}}
+  return pu.call(this,dt,cam);};}
 setTimeout(()=>{const tk=Game.tick.bind(Game);Game.tick=function(rdt,now){tk(rdt,now);try{Float.tick(Math.min(.1,rdt||0));}catch(e){console.warn('float',e);}};},0);
+/* =====================================================================
+   12bk. BUILD 3.13 · MECHANISM ROUTES
+   The Void is meant for after the fourth Apex, but its heights can be earned early by whoever reads the place.
+   · Rift Springs: hexagonal pads that throw you straight up. Some sleep until a Resonance Valve nearby is turned.
+   · Echo Stairs: strike the echo bell and a stair of stones rises out of the white, one by one. It holds for a short
+     while, then sinks back stone by stone. The stones sink under your weight too: do not stand still.
+   · The portable Rift Spring (key item, F / touch button): set a spring down anywhere in the floating worlds.
+   Void routes (no markers, no prompts beyond the interaction itself):
+     1 · Drowned Bell: turn the valve, ride the spring to the Bell Loft.
+     2 · Bell Loft: ring the echo bell, race the stair to the Stillpoint, take the Rift Spring.
+     3 · Gallery of Echoes: a rock hangs over the hill with nothing to climb. Only a spring reaches it.
+   ===================================================================== */
+GEARDB.head_echo={kind:'armor',slot:'head',name:'Echo Watcher\'s Hood',def:20,skills:{voidres:2,marathon:1},tier:4,desc:'Left on a rock above the Gallery of Echoes by someone who wanted to watch the frozen hunters from where they could not look back.'};
+SLI.spring='<path d="M7 26h18"/><path d="M10 22l12-3-12-3 12-3-12-3 12-3"/>';
+const Mech={pads:[],stairs:[],valves:[],port:null,cd:0,fly:null,
+  ROUTE_ON:true,
+  // ---------- builders
+  pad(W,o){const g=new THREE.Group();g.position.set(o.x,o.y,o.z);W.group.add(g);g.userData.noFloor=1;
+    const ring=new THREE.Mesh(new THREE.RingGeometry(1.05,1.22,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:new THREE.Color(1,1,1.1),transparent:true,opacity:.5,depthWrite:false}));ring.position.y=.05;g.add(ring);
+    const disc=new THREE.Mesh(new THREE.CircleGeometry(1.02,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:new THREE.Color(.5,1.6,2),transparent:true,opacity:.0,blending:THREE.AdditiveBlending,depthWrite:false}));disc.position.y=.04;g.add(disc);
+    const base=new THREE.Mesh(new THREE.CylinderGeometry(1.25,1.4,.22,6),new THREE.MeshStandardMaterial({color:0x1a1a1e,roughness:.7,metalness:.3}));base.position.y=-.06;g.add(base);
+    const chev=[];for(let i=0;i<3;i++){const c=new THREE.Mesh(new THREE.RingGeometry(.55-i*.12,.62-i*.12,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:new THREE.Color(1.2,1.8,2.2),transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));g.add(c);chev.push(c);}
+    const beam=new THREE.Mesh(new THREE.CylinderGeometry(.9,1.05,7,6,1,true),new THREE.MeshBasicMaterial({color:new THREE.Color(.7,1.1,1.5),transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));beam.position.y=3.5;beam.userData.noFloor=1;g.add(beam);
+    const P={id:o.id,W,x:o.x,y:o.y,z:o.z,power:o.power||12,dir:o.dir||null,push:o.push||0,wake:o.wake||null,temp:!!o.temp,life:o.life||0,g,ring,disc,chev,cd:0,k:0};
+    W.anim.push((t,dt)=>{if(P.temp){g.visible=P.life>0;if(!g.visible)return;g.scale.setScalar(P.life<1?Math.max(.01,P.life):Math.min(1,g.scale.x+.12));}const on=this.awake(P);P.k=damp(P.k,on?1:0,3,dt||.016);disc.material.opacity=.12+.5*P.k*(.75+.25*Math.sin(t*4));ring.material.opacity=.25+.55*P.k;
+      beam.material.opacity=P.k*(.07+.03*Math.sin(t*2));beam.visible=P.k>.02;chev.forEach((c,i)=>{const u=((t*.9+i/3)%1);c.position.y=.1+u*1.6*P.k;c.material.opacity=P.k*(1-u)*.7;c.scale.setScalar(1+u*.4);});});
+    (W._pads||(W._pads=[])).push(P);return P;},
+  awake(P){if(P.temp)return P.life>0;if(!P.wake)return true;return !!(Hunt.flags&&Hunt.flags['mech_'+P.wake]);},
+  valve(W,o){const g=new THREE.Group();g.position.set(o.x,o.y,o.z);W.group.add(g);
+    const stone=new THREE.MeshStandardMaterial({color:0x1d1c20,roughness:.85,metalness:.1});
+    const col=new THREE.Mesh(new THREE.CylinderGeometry(.32,.42,1.5,6),stone);col.position.y=.75;col.castShadow=true;g.add(col);
+    const cap=new THREE.Mesh(new THREE.CylinderGeometry(.5,.36,.16,6),stone);cap.position.y=1.55;g.add(cap);
+    const lit=new THREE.MeshBasicMaterial({color:new THREE.Color(.9,.9,1),transparent:true,opacity:.35,depthWrite:false});
+    let top;if(o.kind==='bell'){top=new THREE.Mesh(new THREE.LatheGeometry([[0,.5],[.2,.48],[.32,.3],[.36,.05],[.42,0]].map(([a,b])=>new THREE.Vector2(a,b)),12),new THREE.MeshStandardMaterial({color:0x2a2724,roughness:.35,metalness:.85}));top.position.y=1.7;}
+    else{top=new THREE.Mesh(new THREE.TorusGeometry(.42,.05,6,6),lit);top.position.y=2.05;}g.add(top);
+    const halo=new THREE.Mesh(new THREE.RingGeometry(.7,.74,6).rotateX(-Math.PI/2),lit);halo.position.y=.03;g.add(halo);
+    const V={id:o.id,kind:o.kind,target:o.target,W,g,top,lit,halo,k:0};
+    W.anim.push((t,dt)=>{const on=o.kind==='bell'?Mech.stairOn(o.target):!!(Hunt.flags&&Hunt.flags['mech_'+o.target]);V.k=damp(V.k,on?1:0,4,dt||.016);
+      if(o.kind==='bell'){top.rotation.z=Math.sin(t*9)*.25*V.k;}else{top.rotation.set(t*(.3+V.k*2),t*.2,0);}lit.color.setRGB(.9+V.k*.6,.9+V.k*1,1+V.k*1.4);lit.opacity=.3+V.k*.5;});
+    W.colliders.push({x:o.x,z:o.z,r:.5,solid:true,name:'valve'});
+    W.interactDefs.push({id:'mv_'+o.id,kind:'mech',mech:o.kind,target:o.target,pos:new V3(o.x,0,o.z),y:o.y,r:2.2,label:o.kind==='bell'?'Strike the echo bell':'Turn the valve',sub:'',hold:o.kind==='bell'?.4:.9});
+    (W._valves||(W._valves=[])).push(V);return V;},
+  stair(W,o){const S={id:o.id,W,pts:o.pts,dur:o.dur||26,t:-1,stones:[],ghost:[]};const stone=new THREE.MeshStandardMaterial({color:0x2a2a2f,map:TEX.concrete,roughness:.85,metalness:.08});
+    const dark=new THREE.MeshStandardMaterial({color:0x111113,roughness:.8,metalness:.1});
+    o.pts.forEach((p,i)=>{const gh=new THREE.Mesh(new THREE.RingGeometry(1.3,1.36,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:new THREE.Color(.9,.95,1.1),transparent:true,opacity:.1,depthWrite:false}));gh.position.set(p.x,p.h+.02,p.z);gh.userData.noFloor=1;W.group.add(gh);S.ghost.push(gh);
+      const g=new THREE.Group();g.position.set(p.x,p.h-16,p.z);g.rotation.y=i*.7;g.visible=false;W.group.add(g);
+      const slab=new THREE.Mesh(new THREE.CylinderGeometry(1.45,1,.6,6),stone);slab.position.y=-.3;slab.castShadow=true;g.add(slab);
+      const cn=new THREE.Mesh(new THREE.ConeGeometry(.85,1.8,6).rotateX(Math.PI),dark);cn.position.y=-1.5;g.add(cn);
+      const ln=new THREE.Mesh(new THREE.RingGeometry(1.15,1.22,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:new THREE.Color(1.2,1.4,1.8),transparent:true,opacity:.5,depthWrite:false}));ln.position.y=.03;g.add(ln);
+      const st={g,p,i,u:0,ln};S.stones.push(st);
+      const F=Float.add(W,g,{body:slab,round:true,eq:.75,w:1.05,line:null});st.F=F;
+      W.anim.push((t,dt)=>{const T=S.t;let tgt=0;if(T>=0){const up=i*.16,down=S.dur-(S.pts.length-1-i)*.3;tgt=T>=up&&T<down?1:0;}st.u=damp(st.u,tgt,tgt?5.5:2.2,dt||.016);
+        g.visible=st.u>.02;const e=st.u;g.position.y=p.h-16*(1-e)*(1-e)+Math.sin(t*.7+i)*.08*e;
+        const left=T>=0?S.dur-(S.pts.length-1-i)*.3-T:9;ln.material.opacity=left<4&&left>0?(.25+.55*(Math.sin(t*14)>0?1:0)):.5;gh.material.opacity=e>.9?0:.1;});});
+    (W._stairs||(W._stairs=[])).push(S);return S;},
+  stairOn(id){const W=Game.world;const S=W&&(W._stairs||[]).find(s=>s.id===id);return !!(S&&S.t>=0);},
+  isle(W,o){// a hanging island: flat hex top, rock body, roots
+    const g=new THREE.Group();g.position.set(o.x,o.h,o.z);W.group.add(g);const r=o.r;
+    const top=new THREE.Mesh(new THREE.CylinderGeometry(r,r*.82,.8,6),new THREE.MeshStandardMaterial({color:0x232326,map:TEX.concrete,roughness:.88,metalness:.05,bumpMap:TEX.noise,bumpScale:2}));top.position.y=-.4;top.castShadow=top.receiveShadow=true;g.add(top);
+    const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(r*.85,1),new THREE.MeshStandardMaterial({color:0x111113,roughness:.85,flatShading:true}));rock.scale.set(1,.7,1);rock.position.y=-.8-r*.55;rock.castShadow=true;g.add(rock);
+    const rim=new THREE.Mesh(new THREE.RingGeometry(r*.9,r*.93,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:new THREE.Color(.85,.9,1),transparent:true,opacity:.35,depthWrite:false}));rim.position.y=.03;rim.userData.noFloor=1;g.add(rim);
+    for(let i=0;i<4;i++){const a=i/4*Math.PI*2+.4;const c=new THREE.Mesh(new THREE.ConeGeometry(.5+.3*(i%2),3+i%3*1.4,6).rotateX(Math.PI),rock.material);c.position.set(Math.cos(a)*r*.45,-r*.9-1.5,Math.sin(a)*r*.45);g.add(c);}
+    return g;},
+  chest(W,c,y){Chests.make(W,c);const g=W.props['chest_'+c.id];if(g)g.position.y=y;const d=W.interactDefs.find(q=>q.id==='chest_'+c.id);if(d)d.y=y;const k=W.colliders.length-1;if(W.colliders[k]&&W.colliders[k].name==='chest')W.colliders.splice(k,1);},
+  // ---------- the Void's routes
+  build(W){if(W.id!=='void'||W._mech)return;W._mech=1;const H=(x,z)=>W.heightAt(x,z);
+    // 1 · Drowned Bell → Bell Loft
+    const pad={x:63,z:-46};const dir={x:.6,z:-.8};const py=H(pad.x,pad.z);const loft={x:pad.x+dir.x*5.4,z:pad.z+dir.z*5.4,h:py+13};
+    this.pad(W,{id:'bell',x:pad.x,y:py+.02,z:pad.z,power:14.2,dir,push:2.6,wake:'bellspring'});
+    this.valve(W,{id:'bellv',kind:'valve',target:'bellspring',x:59.5,z:-41.5,y:H(59.5,-41.5)});
+    this.isle(W,{x:loft.x,z:loft.z,h:loft.h,r:4.4});W._loft=loft;
+    // 2 · Bell Loft → Echo Stair → Stillpoint
+    const a0=Math.atan2(dir.z,dir.x)+1.2;const N=12,pts=[];for(let i=0;i<N;i++){const a=a0+i*.4;const R=6.6+i*.22;pts.push({x:loft.x+Math.cos(a)*R,z:loft.z+Math.sin(a)*R,h:loft.h+1.2+i*1.3});}
+    const aE=a0+N*.4+.15,RE=6.6+N*.22+2.6;const still={x:loft.x+Math.cos(aE)*RE,z:loft.z+Math.sin(aE)*RE,h:loft.h+1.2+N*1.3-.5};W._still=still;
+    this.stair(W,{id:'bellstair',pts,dur:28});
+    this.valve(W,{id:'loftbell',kind:'bell',target:'bellstair',x:loft.x-Math.cos(a0)*1.6,z:loft.z-Math.sin(a0)*1.6,y:loft.h});
+    this.isle(W,{x:still.x,z:still.z,h:still.h,r:3.4});
+    {const g=new THREE.Group();g.position.set(still.x,still.h,still.z);W.group.add(g);const stone=new THREE.MeshStandardMaterial({color:0x1d1c20,roughness:.85});
+      const col=new THREE.Mesh(new THREE.CylinderGeometry(.34,.44,1.1,6),stone);col.position.y=.55;g.add(col);
+      const sp=new THREE.Group();sp.position.y=1.5;g.add(sp);const mat=new THREE.MeshBasicMaterial({color:new THREE.Color(1.2,1.8,2.2),transparent:true,opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false});
+      for(let i=0;i<4;i++){const r=new THREE.Mesh(new THREE.TorusGeometry(.32-i*.04,.025,4,6),mat);r.rotation.x=Math.PI/2;r.position.y=i*.12;sp.add(r);}
+      W.anim.push(t=>{const got=!!(Hunt.flags&&Hunt.flags.riftSpring);sp.visible=!got;sp.rotation.y=t*.8;sp.position.y=1.5+Math.sin(t*1.6)*.06;});
+      W.interactDefs.push({id:'mv_springtake',kind:'mech',mech:'take',pos:new V3(still.x,0,still.z),y:still.h,r:2,label:'Take',sub:'Rift Spring',hold:.5});}
+    // the way down from the Stillpoint: a return ring to the Drowned Bell
+    {const at={x:still.x+Math.cos(aE+2.2)*2.2,z:still.z+Math.sin(aE+2.2)*2.2};const g=new THREE.Mesh(new THREE.RingGeometry(1.1,1.5,32).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:new THREE.Color(1.6,1.6,1.9),transparent:true,opacity:.8,blending:THREE.AdditiveBlending,depthWrite:false}));
+      g.position.set(at.x,still.h+.05,at.z);g.userData.noFloor=1;W.group.add(g);W.anim.push(t=>{g.rotation.z=-t;g.material.opacity=.55+.3*Math.sin(t*4);});W._stillRet={at,y:still.h,to:{x:61,z:-40}};}
+    // 3 · Gallery of Echoes: the watcher's rock
+    {const x=-56,z=-90;const gy=H(x,z);const h=gy+10.4;this.isle(W,{x,z,h,r:2.8});W._perch={x,z,h};this.chest(W,{id:'echoperch',x:x-1.3,z:z-.6,ry:2.4,tier:'star',item:'head_echo',n:1},h);
+      const g=W.props['chest_echoperch'];if(g)g.traverse(o=>{o.userData.noClimb=true;});}},
+  // ---------- per frame
+  tick(dt){const G=Game,pl=G.player,W=G.world;if(!pl||!W||pl.isAI)return;this.cd=Math.max(0,this.cd-dt);
+    if(this.port&&this.port.W!==W){this.drop();}
+    if(G.state!=='playing'){return;}
+    for(const S of W._stairs||[]){if(S.t>=0){S.t+=dt;if(S.t>S.dur+.5)S.t=-1;}}
+    if(this.port){const P=this.port;P.life-=dt;if(P.life<=0)this.drop();}
+    const Y=(pl.gy||0)+(pl.py||0);
+    // launch carry: the spring's own lean, fading over the rise
+    if(this.fly){const f=this.fly;f.t+=dt;if((pl.py||0)>.05&&f.t<1.1&&pl.state==='move'){const k=(1-f.t/1.1)*dt*f.push;pl.pos.x+=f.dir.x*k;pl.pos.z+=f.dir.z*k;}else if(f.t>.2)this.fly=null;}
+    for(const P of W._pads||[]){P.cd=Math.max(0,P.cd-dt);if(!this.awake(P)||P.cd>0)continue;
+      if(pl.state!=='move'||(pl.py||0)>.05||Math.hypot(pl.pos.x-P.x,pl.pos.z-P.z)>1.15||Math.abs((pl.gy||0)-P.y)>.6)continue;
+      P.cd=.9;pl.vy=Math.sqrt(2*22*P.power);pl.py=.02;if(P.dir&&P.push)this.fly={dir:P.dir,push:P.push,t:0};
+      Audio.play('riftRelease');Game.shake&&Game.shake(.12);try{FX.shock(_a.set(P.x,P.y+.1,P.z),3,[1.2,1.8,2.2],.4,P.y+.1);}catch(e){}
+      if(P.temp)P.life=Math.min(P.life,.6);}
+    // the Stillpoint's way down
+    if(W._stillRet&&typeof VoidTiers!=='undefined'&&!VoidTiers.fly&&!(VoidTiers.cd>0)&&pl.state==='move'&&(pl.py||0)<.1){const R=W._stillRet;if(Math.hypot(pl.pos.x-R.at.x,pl.pos.z-R.at.z)<1.4&&Math.abs(Y-R.y)<1.5){let y1=0;Abyss.busy=true;try{y1=W.heightAt(R.to.x,R.to.z);}finally{Abyss.busy=false;}
+      VoidTiers.fly={t:0,D:2.4,a:new V3(R.at.x,Y,R.at.z),b:new V3(R.to.x,y1,R.to.z),arc:6,col:[1.6,1.6,1.9]};Audio.play('teleRift');Abyss.hist=[];Abyss.safe=null;}}},
+  // ---------- the portable spring
+  owned(){return !!(Hunt.flags&&Hunt.flags.riftSpring);},
+  deploy(){const G=Game,pl=G.player,W=G.world;if(!pl||!W||G.state!=='playing'||!this.owned()||this.cd>0)return false;
+    if(pl.state!=='move'||(pl.py||0)>.05||pl.fc){return false;}
+    const ok=typeof ABYSS_WORLDS!=='undefined'&&ABYSS_WORLDS.has(W.id);const f=fwd(pl.yaw);const x=pl.pos.x+f.x*1.7,z=pl.pos.z+f.z*1.7;const h=W.heightAt(x,z);
+    if(!ok||h<-500||Math.abs(h-(pl.gy||0))>1.2){this.cd=.6;Audio.play('dodge',{v:.4});try{FX.smoke.emit(_a.set(x,(pl.gy||0)+.1,z),5,{speed:.8,color:[.6,.6,.65],life:.5,size:.3,gravity:.1,alpha:.3});}catch(e){}return false;}
+    let P=W._portPad;if(!P)P=W._portPad=this.pad(W,{id:'port',x,y:h+.02,z,power:9.6,temp:true,life:0});
+    P.x=x;P.y=h+.02;P.z=z;P.g.position.set(x,h+.02,z);P.life=9;P.cd=.25;P.g.visible=true;P.g.scale.setScalar(.05);this.port=P;this.cd=1.2;
+    Audio.play('learn',{v:.5});try{FX.shock(_a.set(x,h+.1,z),2.4,[1.2,1.8,2.2],.35,h+.1);}catch(e){}return true;},
+  drop(){const P=this.port;if(!P)return;this.port=null;P.life=0;P.g.visible=false;},
+  use(it){const F=Hunt.flags;if(it.mech==='valve'){if(F['mech_'+it.target])return;F['mech_'+it.target]=1;Audio.play('riftRelease');Game.shake&&Game.shake(.25);Save.auto&&Save.auto();return;}
+    if(it.mech==='bell'){const W=Game.world;const S=(W._stairs||[]).find(s=>s.id===it.target);if(!S||S.t>=0)return;S.t=0;Audio.play('learn');Audio.play('riftRelease');Game.shake&&Game.shake(.2);return;}
+    if(it.mech==='take'){if(F.riftSpring)return;F.riftSpring=1;Audio.play('learn');Save.auto&&Save.auto();
+      UI.notify(Touch.on?'Rift Spring · tap the spring to set it down':'Rift Spring · F to set it down','rare');return;}},
+  visible(it){if(it.kind!=='mech')return null;const F=Hunt.flags||{};if(it.mech==='valve')return !F['mech_'+it.target];if(it.mech==='bell')return !this.stairOn(it.target);if(it.mech==='take')return !F.riftSpring;return true;}};
+window.__AZmech=Mech;
+{const b=World02.build.bind(World02);World02.build=function(){const W=b();try{Mech.build(W);}catch(e){console.warn('mech',e);}return W;};}
+{const vv=VoidRun.visible.bind(VoidRun);VoidRun.visible=function(it){const v=Mech.visible(it);if(v!==null)return v;return vv(it);};}
+{const hu=Hunt.use.bind(Hunt);Hunt.use=function(it){if(it&&it.kind==='mech'){Mech.use(it);return;}return hu(it);};}
+// interactions with a height (rooftop chests, the Stillpoint, the valves) only reach you at that height, in every world
+{const ui=Hunt.updateInteract.bind(Hunt);Hunt.updateInteract=function(dt){const W=Game.world,pl=Game.player;if(!W||!pl||(typeof Climb!=='undefined'&&Climb.free(W)))return ui(dt);const L=this.interact;if(!L||!L.some(it=>it.y!==undefined))return ui(dt);
+  const Y=(pl.gy||0)+(pl.py||0);this.interact=L.filter(it=>it.y===undefined||Math.abs(Y-it.y)<3.2);try{return ui(dt);}finally{this.interact=L;}};}
+addEventListener('keydown',e=>{if(e.code==='KeyF'&&!e.repeat&&typeof Game!=='undefined'&&Game.state==='playing'&&!(typeof Photo!=='undefined'&&Photo.on))Mech.deploy();});
+setTimeout(()=>{const tk=Game.tick.bind(Game);Game.tick=function(rdt,now){tk(rdt,now);try{Mech.tick(Math.min(.1,rdt||0));}catch(e){console.warn('mech',e);}};
+  // touch: a spring button once you carry one, only in the floating worlds
+  try{if(Touch.on){const top=document.getElementById('tTop');if(top){const b=document.createElement('button');b.className='tb tb-s tb-spring';b.setAttribute('aria-label','Rift Spring');b.hidden=true;
+    b.innerHTML='<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+SLI.spring+'</svg>';
+    b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();Mech.deploy();});top.prepend(b);Mech._tb=b;
+    setInterval(()=>{const W=Game.world;b.hidden=!(Mech.owned()&&W&&typeof ABYSS_WORLDS!=='undefined'&&ABYSS_WORLDS.has(W.id)&&Game.state==='playing');},500);}}}catch(e){}},0);
+// the pouch's empty slot becomes the spring once you carry it
+setTimeout(()=>{try{const V=window.__AZvhud&&(window.__AZvhud.VHud||window.__AZvhud);if(!V||!V.pouch)return;const po=V.pouch.bind(V);
+  V.pouch=function(pl){const own=Mech.owned(),cd=Mech.cd>0||!!Mech.port;const k=own+'|'+cd;if(k!==this._mk){this._mk=k;this._pk=null;}po(pl);if(!own)return;
+    const el=this.el&&this.el.querySelector('#vhPouch');if(!el)return;const last=el.lastElementChild;if(!last||last._spring===k)return;last._spring=k;last.className='vh-it'+(cd?' dim':'');last.innerHTML=svgI(SLI.spring,1.4)+'<small>F</small>';};}catch(e){console.warn('pouch',e);}},0);
+Object.assign(ZH_DICT,{'Echo Watcher\'s Hood':'回聲守望者兜帽','Left on a rock above the Gallery of Echoes by someone who wanted to watch the frozen hunters from where they could not look back.':'有人把佢留喺回聲畫廊上空嘅一嚿石度。佢想喺嗰班凝固嘅獵人望唔到嘅地方，靜靜望住佢哋。',
+  'Strike the echo bell':'敲響回聲鐘','Turn the valve':'轉動共鳴閥','Take':'拎起','Rift Spring':'裂隙彈簧','Rift Spring · F to set it down':'裂隙彈簧 · 按 F 放低','Rift Spring · tap the spring to set it down':'裂隙彈簧 · 撳彈簧掣放低'});
 
 /* =====================================================================
    13. GAME — state, loop, flow
