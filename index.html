@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.9</small>
+        <small>Rift Hunter field prototype · Build 3.10</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1432,7 +1432,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.9":"裂隙獵人 實地原型 · Build 2.8","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.10":"裂隙獵人 實地原型 · Build 2.8","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -4957,7 +4957,7 @@ const Combat={
   aimTarget(pl,range,yaw){const B=Game.boss;let best=null,bs=1e9;
     const cand=[];if(B.alive&&!B.hidden){const pt=B.weak?B.parts.find(p=>p.core)||B.parts[1]:B.parts.find(p=>p.name==='chest')||B.parts[1];cand.push({boss:true,part:pt,pos:pt.w});}
     for(const h of Hounds.list)if(h.alive)cand.push({h,pos:h.pos});
-    if(pl.lt){const L=pl.lt;if(L.kind==='boss'&&cand[0]&&cand[0].boss)return cand[0];const c=cand.find(c=>c.h&&c.h===L.h);if(c)return c;}
+    if(pl.lt){const L=pl.lt,far=range*1.6;if(L.kind==='boss'&&cand[0]&&cand[0].boss&&hdist(pl.pos,B.pos)<far+(B.bodyR||2))return cand[0];const c=cand.find(c=>c.h&&c.h===L.h);if(c&&hdist(pl.pos,c.pos)<far)return c;}
     for(const c of cand){const d=hdist(pl.pos,c.pos);if(d>range)continue;const da=Math.abs(angWrap(yawTo(pl.pos,c.pos)-yaw));if(da>.55)continue;const s=d*.05+da*2.2;if(s<bs){bs=s;best=c;}}
     return best;},
   tpos(t){if(t.boss)return t.part.w;const y=(Game.world.heightAt?Game.world.heightAt(t.h.pos.x,t.h.pos.z):0)+.75;return _a.set(t.h.pos.x,y,t.h.pos.z);},
@@ -14019,7 +14019,7 @@ const Caches={
 const Sight={
   ground(W,x,z){try{return W.heightAt?W.heightAt(x,z):0;}catch(e){return 0;}},
   hidden(B){const W=Game.world,pl=Game.player;if(!W||!pl||!B||!B.pos)return false;const by=this.ground(W,B.pos.x,B.pos.z);const py=(pl.gy||0)+(pl.py||0);
-    if(py-by>5.5)return true;
+    if(Math.abs(py-by)>5.5)return true;
     const d=hdist(B.pos,pl.pos);if(d<7)return false;const e0=by+3,e1=py+1.4;const n=Math.min(10,Math.ceil(d/4));
     for(let k=1;k<n;k++){const u=k/n;const x=B.pos.x+(pl.pos.x-B.pos.x)*u,z=B.pos.z+(pl.pos.z-B.pos.z)*u;const g=Climb.gh(W,x,z);if(g<-100)continue;if(g>e0+(e1-e0)*u+.6)return true;}
     return false;}};
@@ -14327,6 +14327,28 @@ Object.assign(ZH_DICT,{'Rift Recall…':'裂隙回歸…'});
 window.__AZabyss=Abyss;
 // safety: a hit or knock-down state that lost its action falls back to standing
 {const pu=Player.prototype.update;Player.prototype.update=function(dt,cam){if(!this.act&&(this.state==='hit'||this.state==='down'||this.state==='act'||this.state==='dodge'))this.state='move';return pu.call(this,dt,cam);};}
+/* =====================================================================
+   12bi. BUILD 3.10 · NEVER STUCK
+   · If you push in one direction for about a second and do not move (a rock lip, a seam in the ravine floor, a
+     prop corner), Eidren hops over it: the nearest spot ahead within 1.3 m up and 2 m out that you could stand on.
+   · A lock-on drops on its own once the target is more than 45 m away, so Shadow Cut can never pull you across
+     the map to a far-off monster.
+   ===================================================================== */
+const Unstuck={t:0,p:null,cd:0,
+  tick(dt){const G=Game,pl=G.player,W=G.world;if(!pl||pl.isAI||!W||G.state!=='playing')return;
+    try{const L=pl.lockOn;if(pl.locked&&L&&L.pos&&hdist(pl.pos,L.pos)>45){pl.locked=false;pl.lockOn=null;}}catch(e){}
+    this.cd-=dt;if(pl.state!=='move'||(pl.py||0)>.05||pl.climb||(typeof Cairns!=='undefined'&&Cairns.fray&&Cairns.fray.k>.25)||(typeof Cine!=='undefined'&&Cine.on)){this.t=0;this.p=null;return;}
+    const d=pl.inputDir(Cam);if(!d||d.lengthSq()<.25){this.t=0;this.p=null;return;}
+    if(!this.p){this.p=pl.pos.clone();this.t=0;return;}this.t+=dt;if(this.t<.9)return;
+    const moved=hdist(this.p,pl.pos);this.p=pl.pos.clone();this.t=0;if(moved>.35||this.cd>0)return;this.hop(W,pl,d);},
+  free(W,x,z){for(const c of W.colliders||[]){if(!c.solid&&c.solid!==undefined)continue;if(c.r!==undefined&&c.x!==undefined&&(x-c.x)**2+(z-c.z)**2<(c.r+.45)**2)return false;}return !(W.pBlock&&W.pBlock(x,z));},
+  hop(W,pl,d){const y0=(pl.gy||0)+(pl.py||0);const yaw=Math.atan2(d.x,d.z);const tmp=new V3();
+    for(const da of[0,.45,-.45,.9,-.9])for(const r of[.9,1.4,2]){const a=yaw+da;const x=pl.pos.x+Math.sin(a)*r,z=pl.pos.z+Math.cos(a)*r;tmp.set(x,0,z);if(W.clamp){W.clamp(tmp,.4);if(Math.hypot(tmp.x-x,tmp.z-z)>.05)continue;}
+      const g=W.heightAt?W.heightAt(x,z):0;const rise=g-y0;if(rise>1.35||rise<-4||g<-400)continue;if(!this.free(W,x,z))continue;
+      pl.pos.set(x,0,z);pl.gy=g;pl.py=Math.max(0,y0-g)+.05;pl.vy=3.2;pl.vel.set(0,0,0);this.cd=.6;try{Audio.play('step',{v:.8});}catch(e){}return true;}
+    return false;}};
+setTimeout(()=>{const tk=Game.tick.bind(Game);Game.tick=function(rdt,now){tk(rdt,now);try{Unstuck.tick(Math.min(.1,rdt||0));}catch(e){}};},0);
+window.__AZunstuck=Unstuck;
 
 /* =====================================================================
    13. GAME — state, loop, flow
