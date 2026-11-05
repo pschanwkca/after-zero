@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.10</small>
+        <small>Rift Hunter field prototype · Build 3.11</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1432,7 +1432,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.10":"裂隙獵人 實地原型 · Build 2.8","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.11":"裂隙獵人 實地原型 · Build 2.8","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -4954,6 +4954,13 @@ const Combat={
   segDist(p,a,b){const vx=b.x-a.x,vz=b.z-a.z,l2=vx*vx+vz*vz||1;const t=clamp(((p.x-a.x)*vx+(p.z-a.z)*vz)/l2,0,1);return Math.hypot(p.x-a.x-vx*t,p.z-a.z-vz*t);},
   seg3(p,a,b){const v=_b.subVectors(b,a),l2=v.lengthSq()||1;const t=clamp(_c.subVectors(p,a).dot(v)/l2,0,1);return p.distanceTo(_c.copy(a).addScaledVector(v,t));},
   // best target for a ranged attack: lock, else whatever sits nearest the aim line
+  // where a dash or a blink may land: in free-roam worlds walk the line and stop before a wall; never snap to the nearest road
+  dest(pl,a0,e){const W=Game.world;const free=(typeof Climb!=='undefined'&&Climb.free&&Climb.free(W))||(typeof Abyss!=='undefined'&&Abyss.on&&Abyss.on(W));if(!free){W.clamp(e,.6);return e;}
+    const Y0=(pl.gy||0)+(pl.py||0);pl._preY=Y0;const L=hdist(a0,e),n=Math.max(1,Math.ceil(L/.5));let lx=a0.x,lz=a0.z;const p=new V3();
+    for(let i=1;i<=n;i++){p.copy(a0).lerp(e,i/n);const g=W.heightAt?W.heightAt(p.x,p.z):0;if(g>Y0+1.2)break;if(W.pBlock&&W.pBlock(p.x,p.z))break;lx=p.x;lz=p.z;}
+    e.x=lx;e.z=lz;if(W._cg){const c=W._cg;e.x=clamp(e.x,c.X0+1,c.X0+c.nx*c.R-1);e.z=clamp(e.z,c.Z0+1,c.Z0+c.nz*c.R-1);}return e;},
+  // after a dash or blink down off a ledge, keep your height and fall instead of snapping to the ground
+  keepY(pl){const W=Game.world,Y=pl._preY;pl._preY=null;if(Y==null||!W.heightAt)return;const g=W.heightAt(pl.pos.x,pl.pos.z);if(Y>g+.3){pl.gy=g;pl.py=Y-g;pl.vy=0;}},
   aimTarget(pl,range,yaw){const B=Game.boss;let best=null,bs=1e9;
     const cand=[];if(B.alive&&!B.hidden){const pt=B.weak?B.parts.find(p=>p.core)||B.parts[1]:B.parts.find(p=>p.name==='chest')||B.parts[1];cand.push({boss:true,part:pt,pos:pt.w});}
     for(const h of Hounds.list)if(h.alive)cand.push({h,pos:h.pos});
@@ -4993,9 +5000,9 @@ const Combat={
   // ---- longsword: iaido — sheathe, then one flash cut straight through the target; the wound opens a beat later
   iaido(pl,a){const lv=(a&&a.lvl)||1,cm=(a&&a.cm)||1;const f=pl.facing.clone();const T=this.aimTarget(pl,10,pl.yaw);
     let travel=4+lv;if(T){const d=hdist(pl.pos,T.pos);travel=clamp(d+(T.boss?Game.boss.bodyR+1.8:2.2),3.5,8+lv);}
-    const a0=pl.pos.clone(),e=a0.clone().addScaledVector(f,travel);Game.world.clamp(e,.6);this.cutThrough(pl,a0,e,{dmg:84*cm,stg:30*cm,lv,kind:'iaido'});},
+    const a0=pl.pos.clone(),e=a0.clone().addScaledVector(f,travel);Combat.dest(pl,a0,e);this.cutThrough(pl,a0,e,{dmg:84*cm,stg:30*cm,lv,kind:'iaido'});},
   cutThrough(pl,a0,e,o){const pts=[];for(let i=1;i<=3;i++)pts.push(a0.clone().lerp(e,i/4));
-    FX.ghost(pl.root,pl.C.ghost||[1.2,1.3,1.6]);pl.pos.copy(e);pl.vel.set(0,0,0);pl.invuln=Math.max(pl.invuln,.4);if(pl.root){pl.root.position.x=e.x;pl.root.position.z=e.z;}
+    FX.ghost(pl.root,pl.C.ghost||[1.2,1.3,1.6]);pl.pos.copy(e);Combat.keepY(pl);pl.vel.set(0,0,0);pl.invuln=Math.max(pl.invuln,.4);if(pl.root){pl.root.position.x=e.x;pl.root.position.z=e.z;}
     Audio.play('dodge');Audio.play('swingHeavy');
     // the cut line
     const L=hdist(a0,e)||.1,mid=a0.clone().lerp(e,.5);const y=(pl.gy||0)+1.15;const line=new THREE.Group();line.position.set(mid.x,y,mid.z);line.rotation.y=Math.atan2(e.x-a0.x,e.z-a0.z);scene.add(line);
@@ -5017,8 +5024,8 @@ const Combat={
     const B=Game.boss,c=T.boss?B.pos:T.h.pos,R=T.boss?B.bodyR+1.7:2.1;let ang=Math.atan2(pl.pos.x-c.x,pl.pos.z-c.z);const cuts=[];let i=0,t=0,done=false;pl.invuln=Math.max(pl.invuln,1.1);
     const col=pl.C.ghost||[1.2,1.3,1.6];Game.slow=Math.max(Game.slow,.15);
     Game.casts.push({update(dt){t+=dt;
-        while(i<4&&t>=i*.11){const from=pl.pos.clone();ang+=Math.PI*.78;const to=new V3(c.x+Math.sin(ang)*R,0,c.z+Math.cos(ang)*R);Game.world.clamp(to,.6);
-          FX.ghost(pl.root,col);pl.pos.copy(to);pl.vel.set(0,0,0);pl.yaw=yawTo(to,c);Audio.play('dodge');Audio.play('swing');Game.shake(.12);
+        while(i<4&&t>=i*.11){const from=pl.pos.clone();ang+=Math.PI*.78;const to=new V3(c.x+Math.sin(ang)*R,0,c.z+Math.cos(ang)*R);Combat.dest(pl,from,to);
+          FX.ghost(pl.root,col);pl.pos.copy(to);Combat.keepY(pl);pl.vel.set(0,0,0);pl.yaw=yawTo(to,c);Audio.play('dodge');Audio.play('swing');Game.shake(.12);
           const mid=from.clone().lerp(to,.5),L=hdist(from,to),y=(Game.world.heightAt?Game.world.heightAt(mid.x,mid.z):0)+rand(.8,1.6);
           const m=new THREE.Mesh(new THREE.PlaneGeometry(.05,L+1).rotateX(Math.PI/2),new THREE.MeshBasicMaterial({color:new THREE.Color(3,3,3.2),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
           m.position.set(mid.x,y,mid.z);m.rotation.y=Math.atan2(to.x-from.x,to.z-from.z);m.rotation.z=rand(-.5,.5);scene.add(m);cuts.push(m);i++;}
@@ -5272,7 +5279,7 @@ class Blackout{
     const W=Game.world;const lit=!!(W.litAt&&W.litAt(this.pos));this.exposed=this.alive&&(lit||this.revealT>0);
     const toP=hdist(this.pos,player.pos);let tgt=BLK_P.idle,k=6,ms=0;
     switch(this.state){
-      case 'idle':{this.yaw=angDamp(this.yaw,yawTo(this.pos,player.pos),1.2,dt);if(Game.state==='playing'&&toP<26){this.aware=true;this.setState('pursue');Game.bossReveal();}break;}
+      case 'idle':{this.yaw=angDamp(this.yaw,yawTo(this.pos,player.pos),1.2,dt);if(Game.state==='playing'&&toP<(this.bodyR||3)+3.5){this.aware=true;this.setState('pursue');Game.bossReveal();}break;}
       case 'pursue':{tgt=BLK_P.alert;k=8;this.cool-=dt;this.yaw=angDamp(this.yaw,yawTo(this.pos,player.pos),4,dt);ms=toP>3.4?(this.enraged?6.2:5)*(this.exposed?.85:1.1):0;
         if(this.cool<=0&&!player.dead){this.begin(this.chooseAttack(toP));}break;}
       case 'telegraph':case 'attack':case 'recovery':{this.runAttack(dt,player);tgt=this.tPose;k=this.state==='attack'?22:14;if(this.state==='recovery'&&this.act&&(this.act.name==='lunge'||this.act.name==='pulse'))this.weak=this.exposed;break;}
@@ -13832,6 +13839,12 @@ html.touch #notif{top:calc(140px + env(safe-area-inset-top,0px))!important}#noti
 #radio{left:50%!important;right:auto!important;top:auto!important;bottom:calc(158px + env(safe-area-inset-bottom,0px))!important;transform:translateX(-50%)!important;width:min(620px,42vw)!important;min-width:0!important;padding:8px 14px!important}
 html.touch #radio{bottom:auto!important}
 @media (max-width:1280px),(max-height:640px){html:not(.touch) #vhud{zoom:.82}html:not(.touch) #mini{zoom:.82}}
+.vh-ecl .lvd{display:none!important}
+.vh-ecl{transition:opacity .6s}.vh-ecl.rest{opacity:0!important}
+.vh-ecl.low .arc{stroke:#ff8a7a;filter:drop-shadow(0 0 8px rgba(255,120,100,.8));animation:eclLow .5s ease-in-out infinite}@keyframes eclLow{50%{opacity:.45}}
+.vh-bars .n2{display:flex;gap:9px;align-items:center;top:30px!important}.vh-bars .n2 b{width:7px;height:7px;transform:rotate(45deg);border:1px solid rgba(214,236,255,.7)}.vh-bars .n2 b.on{background:#fff;box-shadow:0 0 8px #fff;border-color:#fff}
+body.vcalm #vhud .vh-ecl{opacity:0}
+html.touch .vh-ecl{display:block!important;width:78px;height:78px;right:auto;left:calc(50% + 70px);top:calc(50% - 60px)}html.touch .vh-ecl .gl{display:none}
 /* menus: the same night sky */
 #gearScreen,#station,#towerMenu{--f-display:var(--f-serif)}
 #gearScreen h1,#gearScreen h3,#station h1,#station h3,#towerMenu h1,#towerMenu h2,#towerMenu h3{font-weight:500!important;letter-spacing:.08em!important}
@@ -13852,11 +13865,11 @@ html.touch #radio{bottom:auto!important}
     document.body.appendChild(h);this.el=h;const lg=document.createElement('div');lg.id='vlog';document.body.appendChild(lg);this.log=lg;
     this.cHp=h.querySelector('#vhHp');this.cSt=h.querySelector('#vhSt');this.gHp=this.cHp.getContext('2d');this.gSt=this.cSt.getContext('2d');},
   // a heartbeat along a hairline: the beat travels from the star out to where the light ends
-  line(g,W,H,k,chip,t,beat,amp){g.clearRect(0,0,W,H);const y=H/2;g.lineCap='round';
+  line(g,W,H,k,chip,t,beat,amp,col){col=col||'#fff';g.clearRect(0,0,W,H);const y=H/2;g.lineCap='round';
     g.strokeStyle='rgba(244,243,239,.18)';g.lineWidth=1.5;g.beginPath();g.moveTo(0,y);g.lineTo(W,y);g.stroke();
     if(chip>k){g.strokeStyle='rgba(244,243,239,.38)';g.lineWidth=2;g.beginPath();g.moveTo(W*k,y);g.lineTo(W*chip,y);g.stroke();}
     const X=W*k;if(X<2)return;const ph=(t*beat)%1;const bx=ph*X;
-    g.save();g.shadowColor='rgba(255,255,255,.9)';g.shadowBlur=GFX.mobile?0:8;g.strokeStyle='#fff';g.lineWidth=2.2;g.beginPath();
+    g.save();g.shadowColor='rgba(255,255,255,.9)';g.shadowBlur=GFX.mobile?0:8;g.strokeStyle=col;g.lineWidth=2.2;g.beginPath();
     for(let x=0;x<=X;x+=3){let dy=Math.sin(x*.21+t*6)*.9+Math.sin(x*.057-t*3)*1.3;const d=x-bx;if(Math.abs(d)<26){const u=d/26;dy+=(-Math.exp(-u*u*28)*amp*1.25+Math.exp(-(u-.3)*(u-.3)*60)*amp*.55)*(1-Math.abs(u));}
       dy*=Math.min(1,x/40)*Math.min(1,(X-x)/30+.25);x===0?g.moveTo(x,y+dy):g.lineTo(x,y+dy);}g.stroke();g.restore();
     const gr=g.createRadialGradient(X,y,0,X,y,16);gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(X-16,y-16,32,32);
@@ -13877,10 +13890,10 @@ html.touch #radio{bottom:auto!important}
     if(pl.hp<this.prevHp-.5)this.lastHurt=G.time;this.prevHp=pl.hp;if(pl.state==='act'||pl.state==='dodge')this.lastAct=G.time;
     const kHp=clamp(pl.hp/pl.maxHp,0,1),kSt=clamp(pl.st/(pl.maxSt||100),0,1);const low=kHp<.35;
     this.line(this.gHp,this.cHp.width,this.cHp.height,kHp,clamp((pl.hpChip||pl.hp)/pl.maxHp,0,1),t,low?1.6:.85,low?11:7);
-    this.line(this.gSt,this.cSt.width,this.cSt.height,kSt,kSt,t+.4,.6,4);
-    const n1=`${Math.ceil(pl.hp)} / ${Math.round(pl.maxHp)}`,n2=`${Math.round(pl.st)} / ${Math.round(pl.maxSt||100)}`;if(this._n1!==n1){this._n1=n1;this.el.querySelector('#vhHpN').textContent=n1;}if(this._n2!==n2){this._n2=n2;this.el.querySelector('#vhStN').textContent=n2;}
-    const km=clamp((pl.mp||0)/(pl.maxMp||100),0,1);const arc=this.el.querySelector('#vhArc');const off=(339.3*(1-km)).toFixed(1);if(arc.getAttribute('stroke-dashoffset')!==off)arc.setAttribute('stroke-dashoffset',off);
-    const ecl=this.el.querySelector('#vhEcl');ecl.classList.toggle('full',km>=.999||(pl.spiritLv||0)>0);const lv=pl.spiritLv||0;if(this._lv!==lv){this._lv=lv;this.el.querySelectorAll('#vhLv b').forEach((b,i)=>b.classList.toggle('on',i<lv));}
+    const kSp=clamp((pl.mp||0)/(pl.maxMp||100),0,1),slv=pl.spiritLv||0;this.line(this.gSt,this.cSt.width,this.cSt.height,kSp,kSp,t+.4,.55+slv*.45,4+slv*2,slv>=3?'#ffffff':'#d6ecff');
+    const n1=`${Math.ceil(pl.hp)} / ${Math.round(pl.maxHp)}`,n2='lv'+slv;if(this._n1!==n1){this._n1=n1;this.el.querySelector('#vhHpN').textContent=n1;}if(this._n2!==n2){this._n2=n2;this.el.querySelector('#vhStN').innerHTML=[0,1,2].map(i=>`<b class="${i<slv?'on':''}"></b>`).join('');}
+    const km=kSt;const arc=this.el.querySelector('#vhArc');const off=(339.3*(1-km)).toFixed(1);if(arc.getAttribute('stroke-dashoffset')!==off)arc.setAttribute('stroke-dashoffset',off);
+    const ecl=this.el.querySelector('#vhEcl');ecl.classList.toggle('low',km<.25||!!pl.exhausted);if(km<.995)this._stUse=G.time;ecl.classList.toggle('rest',G.time-(this._stUse||-99)>1.4);
     this.pouch(pl);this.armour(pl);this.skills(pl);
     {const a=Cam.yaw||0;const r=this.el.querySelector('#vhRot');const k=a.toFixed(3);if(r._a!==k){r._a=k;r.style.transform=`rotate(${a}rad)`;r.querySelector('.n b').style.transform=`rotate(${-a}rad)`;}}
     {const bh=$('bossHud');const on=!!bh&&parseFloat(bh.style.opacity||'0')>.4;document.body.classList.toggle('vboss',on);}
@@ -14349,6 +14362,48 @@ const Unstuck={t:0,p:null,cd:0,
     return false;}};
 setTimeout(()=>{const tk=Game.tick.bind(Game);Game.tick=function(rdt,now){tk(rdt,now);try{Unstuck.tick(Math.min(.1,rdt||0));}catch(e){}};},0);
 window.__AZunstuck=Unstuck;
+// the first-encounter scene plays once per save for each monster; later meetings are just the roar
+{const once=(key,f)=>function(...a){const F=Hunt.flags||(Hunt.flags={});const k='cine_'+key(this);if(F[k])return;F[k]=1;return f.apply(this,a);};
+ const bc=Story.bossCine.bind(Story);Story.bossCine=once(()=>'breach',function(){return bc();});
+ const L=[typeof Blackout!=='undefined'&&Blackout,typeof Colossus!=='undefined'&&Colossus,typeof FurnaceBeast!=='undefined'&&FurnaceBeast,typeof AshBastion!=='undefined'&&AshBastion,typeof ApexBase!=='undefined'&&ApexBase,typeof UmbraColossus!=='undefined'&&UmbraColossus,typeof ObsidianForge!=='undefined'&&ObsidianForge];
+ for(const C of L){if(!C||!C.prototype.hasOwnProperty('revealCine'))continue;const f=C.prototype.revealCine;C.prototype.revealCine=once(()=>(Game.world&&Game.world.id)||'x',f);}}
+// ---------------------------------------------------------------- dormant monsters: they sleep until you are within ~3 m of them (or you hit them)
+{const near=(B)=>{const pl=Game.player;return !!(pl&&B&&B.pos&&hdist(pl.pos,B.pos)<(B.bodyR||2)*(B.S||1)+3);};
+ const hit=(B)=>Game.time-(B._hitT||-99)<1.5;
+ const pc=Boss.prototype.perceive;Boss.prototype.perceive=function(pl,dt,mul){if(this.hunt&&!this.met&&!this.aware){this.sus=0;if(near(this)){this.engage();return true;}return false;}return pc.call(this,pl,dt,mul);};
+ const wk=Boss.prototype.wake;Boss.prototype.wake=function(...a){if(this.hunt&&!this.aware){this.engage();return;}return wk.apply(this,a);};
+ const sl=Boss.prototype.setLife;Boss.prototype.setLife=function(s){if(this.hunt&&!this.met&&s==='roam')s='rest';return sl.call(this,s);};
+ const bl=ArenaGuard.blocks.bind(ArenaGuard);ArenaGuard.blocks=function(){if(bl())return true;const B=Game.boss;if(!B||B.aware)return false;return !(near(B)||hit(B));};
+ setTimeout(()=>{const tk=Game.tick.bind(Game);Game.tick=function(rdt,now){tk(rdt,now);try{const B=Game.boss,W=Game.world;if(B&&B.hunt&&!B.met&&!B.aware&&B.alive&&B._dorm!==W){B._dorm=W;B.setLife('rest');}}catch(e){}};},0);}
+// ---------------------------------------------------------------- no "off the road, hold G" prompt and no recall button: the world is yours to find your way through
+{Climb.hint=(function(h){return function(t){if(t&&/Rift Recall|Off the road/i.test(t))t='';return h.call(this,t);};})(Climb.hint);
+ const ct=Climb.tick.bind(Climb);Climb.tick=function(dt){const k=Input.keys&&Input.keys.KeyG;if(Input.keys)Input.keys.KeyG=false;this._tHold=false;try{return ct(dt);}finally{if(Input.keys&&k)Input.keys.KeyG=k;}};
+ setInterval(()=>{try{if(Climb._tb)Climb._tb.hidden=true;}catch(e){}},500);}
+{const rt=Abyss.recallTick.bind(Abyss);Abyss.recallTick=function(dt,W,pl){const r=rt(dt,W,pl);try{if(Climb._tb)Climb._tb.hidden=true;const h=$('climbHint');if(h&&/Recall|回歸/.test(h.textContent))h.style.opacity=0;}catch(e){}return r;};}
+// ---------------------------------------------------------------- the opening fall: one continuous shot, no cuts, no bars, straight into play
+Chapter.fall=function(){const pl=Game.player;const P=pl.pos.clone();const gy=pl.gy||0;pl.root.visible=false;Story.cine='fall';
+  const star=new THREE.Group();const core=new THREE.Mesh(new THREE.SphereGeometry(.6,12,10),new THREE.MeshBasicMaterial({color:new THREE.Color(3,3,3.2)}));star.add(core);
+  const tail=new THREE.Mesh(new THREE.CylinderGeometry(.05,.5,26,8,1,true).translate(0,13,0),new THREE.MeshBasicMaterial({color:new THREE.Color(1.6,1.7,2.2),transparent:true,opacity:.55,blending:THREE.AdditiveBlending,depthWrite:false}));star.add(tail);
+  const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTexture(),color:new THREE.Color(2.4,2.4,2.8),transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));glow.scale.setScalar(14);glow.position.copy(P).setY(gy+1.2);scene.add(glow);
+  const from=P.clone().add(new V3(-40,130,-70)),to=P.clone().setY(gy+.5);const dir=to.clone().sub(from).normalize();tail.quaternion.setFromUnitVectors(new V3(0,1,0),dir.clone().negate());scene.add(star);star.position.copy(from);
+  const yaw=pl.yaw||0,back=fwd(yaw);const C0=P.clone().addScaledVector(back,-8).add(new V3(back.z*4,gy+2.4,-back.x*4)),C1=P.clone().addScaledVector(back,-6.4).add(new V3(back.z*2.6,gy+2,-back.x*2.6));
+  const look=new V3();let t=0,landed=false,end=3.9;const lerpV=(a,b,u)=>a.clone().lerp(b,u);
+  const F={t:0,on:true,cam(){if(!F.on)return;const tt=F.t;const u=Math.min(1,tt/2.3),e=u*u;
+      if(tt<2.3){camera.position.copy(lerpV(C0,C1,smooth(u)));look.copy(to).setY(gy+3.5).lerp(star.position,.32*(1-e));camera.lookAt(look);camera.fov=50;camera.updateProjectionMatrix();return;}
+      if(tt<2.9){camera.position.copy(C1);look.copy(to).setY(gy+1);camera.lookAt(look);return;}
+      // hand back to the play camera over 1 s
+      const w=smooth(Math.min(1,(tt-2.9)/1));const gp=camera.position.clone(),gq=camera.quaternion.clone();camera.position.copy(C1).lerp(gp,w);const q0=new THREE.Quaternion();const m=new THREE.Matrix4().lookAt(C1,_a.copy(to).setY(gy+1),new V3(0,1,0));q0.setFromRotationMatrix(m);camera.quaternion.copy(q0).slerp(gq,w);}};
+  Opening2=F;
+  Game.casts.push({update(dt){t+=dt;F.t=t;const u=Math.min(1,t/2.3);star.position.lerpVectors(from,to,u*u);if(Math.random()<.6)FX.sparks.emit(star.position,2,{speed:1,color:[2.4,2.4,2.8],life:.5,size:.08,gravity:0});
+      if(u>=1&&!landed){landed=true;scene.remove(star);pl.root.visible=true;glow.material.opacity=1;FX.shock(_a.set(to.x,gy+.1,to.z),12,[1.6,1.7,2.2],.6);FX.decal('crack',to,{r:3.6,life:30});
+        FX.smoke.emit(_a.set(to.x,gy+.4,to.z),26,{speed:6,color:[.45,.45,.5],life:1.6,size:1.5,gravity:.2,drag:2,grow:2,alpha:.45,jitter:1.5});Audio.play('slam');Audio.play('explode');Game.shake(.7);$('flash').animate([{opacity:.75},{opacity:0}],{duration:700});}
+      if(landed)glow.material.opacity=Math.max(0,glow.material.opacity-dt*1.6);
+      if(t>=end){F.on=false;Story.cine=null;scene.remove(glow);Story.card('Chapter 1','The First Hunt','Ruined City · Sector 9',4.2);
+        Story.after(1,()=>{try{const L=Story.heroLine('wake');if(L&&Game.state==='playing'&&!Hunt.reached)Story.say('wakeLine','hero',[].concat(L));}catch(e){}});
+        Story.after(8.5,()=>{if(!Hunt.reached)Story.say('wake14','iris',STORY.wake14);});return false;}return true;},dispose(){scene.remove(star);scene.remove(glow);F.on=false;if(Story.cine==='fall')Story.cine=null;}});
+  if(window.__AZnoCine){t=end-.01;}};
+var Opening2=null;
+{const cu=Cam.update.bind(Cam);Cam.update=function(...a){const r=cu(...a);try{if(Opening2&&Opening2.on)Opening2.cam();}catch(e){}return r;};}
 
 /* =====================================================================
    13. GAME — state, loop, flow
