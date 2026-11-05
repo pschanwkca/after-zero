@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.11</small>
+        <small>Rift Hunter field prototype · Build 3.12</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1432,7 +1432,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.11":"裂隙獵人 實地原型 · Build 2.8","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.12":"裂隙獵人 實地原型 · Build 2.8","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -14404,6 +14404,203 @@ Chapter.fall=function(){const pl=Game.player;const P=pl.pos.clone();const gy=pl.
   if(window.__AZnoCine){t=end-.01;}};
 var Opening2=null;
 {const cu=Cam.update.bind(Cam);Cam.update=function(...a){const r=cu(...a);try{if(Opening2&&Opening2.on)Opening2.cam();}catch(e){}return r;};}
+/* =====================================================================
+   12bj. BUILD 3.12 · THE DRIFT TAKES YOUR WEIGHT
+   In the floating worlds (Void, Void Nexus, Void Singularity, Rift Spire, Empty Throne) whatever drifts in the air is real:
+   · stand on a drifting block and it sinks under you, slowly, as deep as its size allows; step off and it rises back and bobs.
+   · jump at its edge and Eidren catches the lip and pulls himself up; push into a tall side and he climbs it, and the block
+     carries him while it drifts, spins and sinks.
+   · solid blocks that do not drift (pillars, monoliths, crates of stone) climb the same way in the worlds without a climb grid.
+   · the Void gains the Drift Stair: sinking stones spiralling from the Threshold up round the hanging Upper Crown. No marker,
+     no prompt: you see the first stone from the rim and the rest from the first.
+   How: floaters are found by watching which blocks bob in the first moments in a world. Their sink is a spring (depth set by
+   size), applied on top of whatever their own animation does, so nothing that already moves them is replaced.
+   ===================================================================== */
+const Float={W:null,near:[],stand:null,prevStand:null,airVy:0,_push:0,_pf:null,ray:new THREE.Raycaster(),
+  on(W){return typeof ABYSS_WORLDS!=='undefined'&&!!W&&ABYSS_WORLDS.has(W.id);},
+  st(W){return W._fl||(W._fl={mov:[],stat:[],hash:new Map(),scan:null,stamp:0});},
+  OKGEO:{BoxGeometry:1,DodecahedronGeometry:1,IcosahedronGeometry:1,CylinderGeometry:1},
+  okMat(o){const m=o.material;if(!m||Array.isArray(m))return false;if(o.isSprite||o.isPoints||o.isLine)return false;if(m.isMeshBasicMaterial||m.isShaderMaterial||m.isRawShaderMaterial)return false;
+    if(m.side===THREE.BackSide)return false;if(m.transparent&&(m.opacity<.85||m.blending===THREE.AdditiveBlending))return false;return true;},
+  vis(o){let v=o;while(v){if(!v.visible)return false;v=v.parent;}return true;},
+  // ---- a floater: o moves (its own animation), b is the solid body we stand on / climb
+  make(o,b,opt={}){const g=b.geometry;if(!g.boundingBox)g.computeBoundingBox();const bb=g.boundingBox;b.updateMatrixWorld(true);
+    const s=new V3(),q=new THREE.Quaternion(),p=new V3();b.matrixWorld.decompose(p,q,s);
+    const c=new V3();bb.getCenter(c);const hg=new V3();bb.getSize(hg).multiplyScalar(.5);
+    const F={o,b,stat:!!opt.stat,box:g.type==='BoxGeometry'&&!opt.round,c,hg,sx:Math.abs(s.x)||1,sy:Math.abs(s.y)||1,sz:Math.abs(s.z)||1,off:0,v:0,applied:0,load:0,
+      inv:new THREE.Matrix4(),cw:new V3(),lastRy:o.rotation.y,lastX:0,lastZ:0,line:opt.line||null};
+    F.hx=hg.x*F.sx;F.hy=hg.y*F.sy;F.hz=hg.z*F.sz;F.r=Math.hypot(F.hx,F.hz);F.rh=Math.max(F.hx,F.hz);
+    const r=Math.max(.6,Math.min(F.hx,F.hz));F.eq=opt.eq!==undefined?opt.eq:clamp(4.2/(r*r),.15,6);F.w=opt.w||clamp(1.5/Math.sqrt(r),.45,1.5);
+    this.sync(F);F.lastX=F.ox;F.lastZ=F.oz;return F;},
+  sync(F){F.inv.copy(F.b.matrixWorld).invert();F.cw.copy(F.c).applyMatrix4(F.b.matrixWorld);const e=F.o.matrixWorld.elements;F.ox=e[12];F.oz=e[14];},
+  add(W,o,opt={}){const S=this.st(W);const b=opt.body||o;const F=this.make(o,b,opt);o.userData.noFloor=1;o.userData.float=1;S.mov.push(F);return F;},
+  addStat(W,b){const S=this.st(W);const F=this.make(b,b,{stat:true});F.top=F.cw.y+F.hy;F.bot=F.cw.y-F.hy;S.stat.push(F);
+    const R=12,i0=Math.floor((F.cw.x-F.r)/R),i1=Math.floor((F.cw.x+F.r)/R),k0=Math.floor((F.cw.z-F.r)/R),k1=Math.floor((F.cw.z+F.r)/R);
+    for(let i=i0;i<=i1;i++)for(let k=k0;k<=k1;k++){const key=i+','+k;let a=S.hash.get(key);if(!a)S.hash.set(key,a=[]);a.push(F);}return F;},
+  // ---- geometry helpers (geometry-local ↔ world)
+  loc(F,x,y,z){return _a.set(x,y,z).applyMatrix4(F.inv);},
+  wld(F,lx,ly,lz,out){return (out||_b).set(lx,ly,lz).applyMatrix4(F.b.matrixWorld);},
+  axisW(F,k){const e=F.b.matrixWorld.elements;const i=k==='x'?0:8;const l=Math.hypot(e[i],e[i+2])||1;return {x:e[i]/l,z:e[i+2]/l};},
+  topAt(F,x,z){if(F.box){const l=this.loc(F,x,F.cw.y,z);const gx=l.x,gz=l.z;if(Math.abs(gx-F.c.x)>F.hg.x||Math.abs(gz-F.c.z)>F.hg.z)return null;return this.wld(F,gx,F.c.y+F.hg.y,gz).y;}
+    if((x-F.cw.x)**2+(z-F.cw.z)**2>F.rh*F.rh)return null;const R=this.ray;R.camera=camera;R.near=0;R.far=F.hy*2+3;R.set(_a.set(x,F.cw.y+F.hy+1.5,z),_b.set(0,-1,0));
+    try{const h=R.intersectObject(F.b,false);for(const it of h){if(it.face&&it.face.normal){return it.point.y;}}}catch(e){}return null;},
+  topW(F){return F.cw.y+F.hy;},botW(F){return F.cw.y-F.hy;},
+  base(W,x,z){const A=typeof Abyss!=='undefined'?Abyss:null;const was=A&&A.busy;if(A)A.busy=true;this.busy=true;try{return W.heightAt(x,z);}finally{if(A)A.busy=was;this.busy=false;}},
+  // a static block that the ground already reaches the top of is floor, not a wall (raised pads, ramps, plinths)
+  floorLike(W,F,x,z){if(!F.stat)return false;const h=this.base(W,x,z);return h>=F.top-.6;},
+  // ---- adopting a world: layered height, offsets around the world's own update, and the scan
+  adopt(W){if(W._float)return;W._float=1;const S=this.st(W);const self=this;
+    const H1=W.heightAt;W.heightAt=(x,z)=>{let h=H1(x,z);if(self.busy)return h;const pl=Game.player;if(!pl||Game.world!==W||Game.state!=='playing')return h;
+      if(Math.abs(x-pl.pos.x)>3||Math.abs(z-pl.pos.z)>3)return h;if(typeof Cine!=='undefined'&&Cine.on)return h;const Y=(pl.gy||0)+(pl.py||0);
+      for(const F of S.mov){if((x-F.cw.x)**2+(z-F.cw.z)**2>F.r*F.r+1)continue;const t=self.topAt(F,x,z);if(t!==null&&t<=Y+.6&&t>h)h=t;}return h;};
+    const U=W.update;W.update=(t,dt)=>{for(const F of S.mov)if(F.applied){F.o.position.y-=F.applied;F.applied=0;}U(t,dt);for(const F of S.mov)if(F.off){F.o.position.y+=F.off;F.applied=F.off;}};
+    if(W.id==='void')try{this.stair(W);}catch(e){console.warn('stair',e);}
+    // what bobs in the first moments is a floater
+    const items=[];for(const c of W.group.children){if(c.userData.float||c.userData.noFloor||!c.visible||c.isLight||c.isSprite||c.isPoints||c.isLine)continue;
+      let b=null;if(c.isMesh){if(this.OKGEO[c.geometry.type]&&this.okMat(c))b=c;}else if(c.isGroup||c.type==='Object3D'){let best=0;for(const k of c.children){if(!k.isMesh||!this.OKGEO[k.geometry.type]||!this.okMat(k))continue;if(!k.geometry.boundingSphere)k.geometry.computeBoundingSphere();const r=k.geometry.boundingSphere.radius*Math.max(k.scale.x,k.scale.z);if(r>best){best=r;b=k;}}}
+      if(!b)continue;items.push({c,b,y0:c.position.y,lo:c.position.y,hi:c.position.y,x0:c.position.x,z0:c.position.z,rx:c.rotation.x,rz:c.rotation.z,bad:false});}
+    const statC=[];if(!W._cgAdopted){W.group.updateMatrixWorld(true);W.group.traverse(o=>{if(!o.isMesh||o.geometry.type!=='BoxGeometry'||o.userData.float||o.userData.noClimb)return;statC.push({o,e:o.matrixWorld.elements.slice()});});}
+    S.scan={t:0,items,statC};const stones=new Set((W.stones||[]).map(s=>s.g));for(const it of items)if(stones.has(it.c))it.bad=true;},
+  scanTick(W,dt){const S=this.st(W),sc=S.scan;if(!sc)return;sc.t+=dt;
+    for(const it of sc.items){if(it.bad)continue;const c=it.c;const y=c.position.y;if(y<it.lo)it.lo=y;if(y>it.hi)it.hi=y;
+      if(Math.abs(c.position.x-it.x0)>.05||Math.abs(c.position.z-it.z0)>.05||Math.abs(c.rotation.x-it.rx)>.02||Math.abs(c.rotation.z-it.rz)>.02)it.bad=true;}
+    if(sc.t<1.6)return;S.scan=null;const moving=new Set();
+    for(const it of sc.items){if(it.bad||it.hi-it.lo<.12)continue;const c=it.c,b=it.b;moving.add(c);
+      // a tumbling cube is levelled so its top is a floor (it keeps its spin)
+      if(b===c&&b.geometry.type==='BoxGeometry'&&(Math.abs(c.rotation.x)>.03||Math.abs(c.rotation.z)>.03)){const p=b.geometry.parameters||{};if(Math.min((p.width||0)*c.scale.x,(p.depth||0)*c.scale.z)<1.2)continue;c.rotation.x=0;c.rotation.z=0;}
+      c.updateMatrixWorld(true);const bx=new THREE.Box3().setFromObject(b);const ex=bx.max.x-bx.min.x,ez=bx.max.z-bx.min.z,ey=bx.max.y-bx.min.y;
+      if(Math.min(ex,ez)<.9||Math.max(ex,ez)>36||ey>30)continue;{const p=b.geometry.boundingBox||(b.geometry.computeBoundingBox(),b.geometry.boundingBox);if(Math.min((p.max.x-p.min.x)*Math.abs(b.scale.x),(p.max.z-p.min.z)*Math.abs(b.scale.z))<.7)continue;}if(b!==c&&Math.abs(c.rotation.x)+Math.abs(c.rotation.z)>.05)continue;
+      this.add(W,c,{body:b,round:b.geometry.type!=='BoxGeometry'});}
+    for(const s of sc.statC){const o=s.o;let up=false;let v=o;while(v&&v!==W.group){if(moving.has(v)){up=true;break;}v=v.parent;}if(up||!this.vis(o)||!this.okMat(o))continue;
+      const e=o.matrixWorld.elements;let dd=0;for(const j of[0,2,8,10,12,13,14])dd+=Math.abs(e[j]-s.e[j]);if(dd>.01)continue;
+      const ly=Math.hypot(e[4],e[5],e[6])||1;if(e[5]/ly<.985)continue;
+      const g=o.geometry;if(!g.boundingBox)g.computeBoundingBox();const sz=new V3();g.boundingBox.getSize(sz);const sx=Math.hypot(e[0],e[1],e[2]),sz2=Math.hypot(e[8],e[9],e[10]);
+      const w=sz.x*sx,h=sz.y*ly,d=sz.z*sz2;if(h<1.2||Math.min(w,d)<.6||Math.max(w,d)>40||h>220)continue;
+      const cx=e[12],cz=e[14];if((W.colliders||[]).some(k=>k.solid&&Math.abs(k.x-cx)<w/2+.2&&Math.abs(k.z-cz)<d/2+.2&&Math.hypot(k.x-cx,k.z-cz)<Math.hypot(w,d)/2))continue;
+      this.addStat(W,o);if(S.stat.length>2500)break;}
+    W._flInfo={mov:S.mov.length,stat:S.stat.length};},
+  // ---- the Drift Stair (Void): from the Threshold rim, round the Upper Crown, to its courtyard
+  stair(W){if(W._stair||typeof V3T==='undefined')return;W._stair=[];const C=V3T.crown;const stone=new THREE.MeshStandardMaterial({color:0x26262a,map:TEX.concrete,roughness:.88,metalness:.05,bumpMap:TEX.noise,bumpScale:2});
+    const dark=new THREE.MeshStandardMaterial({color:0x111113,roughness:.8,metalness:.1});
+    const pts=[];const A={x:0,z:-104,R:17};const t0=1.4,t1=6.4,NS=28,R0=18;const sx=C.x+Math.cos(t0)*R0,sz=C.z+Math.sin(t0)*R0;
+    {const dx=sx-A.x,dz=sz-A.z,L=Math.hypot(dx,dz);for(const d of[19.6,23,26.3])pts.push({x:A.x+dx/L*d,z:A.z+dz/L*d});}
+    for(let i=0;i<NS;i++){const u=i/(NS-1);const a=t0+(t1-t0)*u;const R=R0-Math.max(0,i-(NS-4))*.75;pts.push({x:C.x+Math.cos(a)*R,z:C.z+Math.sin(a)*R});}
+    const N=pts.length;
+    pts.forEach((p,i)=>{const big=i>0&&i%7===0;const h=.9+i*(38.8/(N-1));const rT=big?2.3:1.55,rB=big?1.7:1.1,th=big?.9:.7;
+      const g=new THREE.Group();g.position.set(p.x,h,p.z);g.rotation.y=rand(0,1);W.group.add(g);
+      const slab=new THREE.Mesh(new THREE.CylinderGeometry(rT,rB,th,6),stone);slab.position.y=-th/2;slab.castShadow=slab.receiveShadow=true;g.add(slab);
+      const cn=new THREE.Mesh(new THREE.ConeGeometry(rB*.85,rT*1.3,6).rotateX(Math.PI),dark);cn.position.y=-th-rT*.65;g.add(cn);
+      const ln=new THREE.Mesh(new THREE.RingGeometry(rT*.8,rT*.86,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:new THREE.Color(.8,.9,1.1),transparent:true,opacity:.3,depthWrite:false}));ln.position.y=.03;g.add(ln);
+      const ph=rand(0,6);W.anim.push(t=>{g.position.y=h+Math.sin(t*.6+ph)*.12;});
+      const F=this.add(W,g,{body:slab,round:true,eq:big?.3:1.05,w:big?.7:1.0,line:ln});F.h=h;W._stair.push(F);});},
+  // ---- per frame
+  tick(dt){const G=Game,pl=G.player,W=G.world;if(!pl||!W||pl.isAI)return;
+    if(W!==this.W){if(this.W&&this.W._fl)for(const F of this.W._fl.mov){F.off=0;F.v=0;}this.W=W;this.near=[];this.stand=null;if(pl.fc)this.release(pl,0,0);}
+    if(!this.on(W)||!W._abyss)return;if(!W._float)this.adopt(W);const S=this.st(W);if(S.scan&&G.state==='playing')this.scanTick(W,dt);
+    // near list (moving: all within reach; static: hashed cells around you)
+    const px=pl.pos.x,pz=pl.pos.z;const nr=this.near;nr.length=0;
+    for(const F of S.mov){const op=F.o.position;if((px-op.x)**2+(pz-op.z)**2<(F.r+8)**2)F.o.updateMatrixWorld(true);this.sync(F);const dRy=F.o.rotation.y-F.lastRy,dX=F.ox-F.lastX,dZ=F.oz-F.lastZ;F.lastRy=F.o.rotation.y;F.lastX=F.ox;F.lastZ=F.oz;F.dRy=dRy;F.dX=dX;F.dZ=dZ;
+      if((px-F.cw.x)**2+(pz-F.cw.z)**2<(F.r+3.5)**2)nr.push(F);}
+    if(S.stat.length){S.stamp++;const R=12,ix=Math.floor(px/R),iz=Math.floor(pz/R);for(let i=ix-1;i<=ix+1;i++)for(let k=iz-1;k<=iz+1;k++){const a=S.hash.get(i+','+k);if(!a)continue;
+      for(const F of a){if(F._s===S.stamp)continue;F._s=S.stamp;if((px-F.cw.x)**2+(pz-F.cw.z)**2<(F.r+3)**2&&this.vis(F.b))nr.push(F);}}}
+    if(G.state!=='playing'||pl.dead){this.physics(S,dt);return;}
+    const Y=(pl.gy||0)+(pl.py||0);
+    // what you stand on (moving floaters only: their sink and their spin)
+    this.prevStand=this.stand;this.stand=null;
+    if(!pl.fc&&(pl.py||0)<.05){for(const F of nr){if(F.stat)continue;const t=this.topAt(F,px,pz);if(t!==null&&Math.abs(t-(pl.gy||0))<.18){this.stand=F;break;}}}
+    else if((pl.py||0)>.05)this.airVy=pl.vy||0;
+    const F=this.stand;
+    if(F){if(this.prevStand!==F){F.v-=clamp(-this.airVy*.12,0,2.4)*clamp(1.4/Math.max(.6,Math.min(F.hx,F.hz)),.3,1.6);this.airVy=0;try{FX.smoke.emit(_a.set(px,pl.gy+.05,pz),4,{speed:1.1,color:[.5,.5,.54],life:.6,size:.4,gravity:.1,grow:1.4,alpha:.25});}catch(e){}}
+      // ride its spin and drift
+      if(Math.abs(F.dRy)>1e-6||Math.abs(F.dX)+Math.abs(F.dZ)>1e-6){const c=Math.cos(F.dRy),s=Math.sin(F.dRy);const dx=px-F.ox,dz=pz-F.oz;pl.pos.x=F.ox+dx*c+dz*s+F.dX;pl.pos.z=F.oz-dx*s+dz*c+F.dZ;pl.yaw+=F.dRy;}}
+    this.physics(S,dt);
+    if(typeof Abyss!=='undefined'&&(F||pl.fc))Abyss.ct=Math.max(Abyss.ct||0,.3);
+    if(pl.fc)return;
+    // solid sides
+    for(const N of nr){if(N===F)continue;this.push(W,N,pl,Y);}
+    this.grab(W,pl,Y,dt);},
+  physics(S,dt){const pl=Game.player;for(const F of S.mov){const load=F===this.stand||(pl&&pl.fc&&pl.fc.F===F);if(!load&&!F.off&&!F.v)continue;
+      const n=dt>.04?2:1,h=dt/n;for(let i=0;i<n;i++){const tg=load?-F.eq:0,z=load?.95:.3;const a=F.w*F.w*(tg-F.off)-2*z*F.w*F.v;F.v+=a*h;F.off+=F.v*h;}
+      if(!load&&Math.abs(F.off)<.003&&Math.abs(F.v)<.003){F.off=0;F.v=0;}
+      if(F.line)F.line.material.opacity=.3+Math.min(.5,Math.abs(F.off)*.45);}},
+  push(W,F,pl,Y){if(F.box){const top=F.stat?F.top:this.topW(F),bot=F.stat?F.bot:this.botW(F);if(top<=Y+.6||bot>=Y+1.7)return;
+      const l=this.loc(F,pl.pos.x,F.cw.y,pl.pos.z);const lx=(l.x-F.c.x)*F.sx,lz=(l.z-F.c.z)*F.sz;const px=F.hx+.42-Math.abs(lx),pz=F.hz+.42-Math.abs(lz);if(px<=0||pz<=0)return;
+      if(F.stat&&this.floorLike(W,F,pl.pos.x,pl.pos.z))return;
+      const k=px<pz?'x':'z',pen=Math.min(px,pz),sg=(k==='x'?lx:lz)>=0?1:-1;const ax=this.axisW(F,k);pl.pos.x+=ax.x*sg*pen;pl.pos.z+=ax.z*sg*pen;}
+    else{const top=this.topW(F),bot=this.botW(F);if(top<=Y+.6||bot>=Y+1.7)return;const dx=pl.pos.x-F.cw.x,dz=pl.pos.z-F.cw.z,d=Math.hypot(dx,dz)||1e-3,R=F.rh*.92+.42;if(d>=R)return;pl.pos.x=F.cw.x+dx/d*R;pl.pos.z=F.cw.z+dz/d*R;}},
+  // ---- reaching for a ledge / a wall
+  grab(W,pl,Y,dt){if(pl.state!=='move'||(typeof Cine!=='undefined'&&Cine.on)||(typeof Story!=='undefined'&&Story.cine)){this._push=0;return;}
+    if(typeof Climb!=='undefined'&&Climb.fighting(pl)){this._push=0;return;}
+    const d=pl.inputDir(Cam);const air=(pl.py||0)>.05;const mv=d.lengthSq()>.25;if(mv)d.normalize();if(!mv&&!air){this._push=0;return;}
+    const vh=Math.hypot(pl.vel.x,pl.vel.z);const dir=mv?d:vh>.5?{x:pl.vel.x/vh,z:pl.vel.z/vh}:null;if(!dir){this._push=0;return;}
+    let best=null;
+    for(const F of this.near){let nW,top,face=null,sg=0,u=0,dist;
+      if(F.box){const l=this.loc(F,pl.pos.x,F.cw.y,pl.pos.z);const lx=(l.x-F.c.x)*F.sx,lz=(l.z-F.c.z)*F.sz;const ox=Math.abs(lx)-F.hx,oz=Math.abs(lz)-F.hz;
+        if(ox>=oz){face='x';dist=ox;if(oz>.05)continue;sg=lx>=0?1:-1;u=l.z;}else{face='z';dist=oz;if(ox>.05)continue;sg=lz>=0?1:-1;u=l.x;}
+        if(dist<-.2||dist>.75)continue;const a=this.axisW(F,face);nW={x:a.x*sg,z:a.z*sg};
+        const gx=face==='x'?F.c.x+sg*(F.hg.x-.3/F.sx):u,gz=face==='z'?F.c.z+sg*(F.hg.z-.3/F.sz):u;top=this.wld(F,gx,F.c.y+F.hg.y,gz).y;}
+      else{const dx=pl.pos.x-F.cw.x,dz=pl.pos.z-F.cw.z,dd=Math.hypot(dx,dz)||1e-3;dist=dd-F.rh*.92;if(dist<-.3||dist>.75)continue;nW={x:dx/dd,z:dz/dd};top=this.topAt(F,F.cw.x+nW.x*(F.rh*.5),F.cw.z+nW.z*(F.rh*.5));if(top===null)continue;}
+      const rel=top-Y;if(rel<=.6)continue;const bot=F.stat?F.bot:this.botW(F);if(bot>Y+2.1)continue;
+      const into=-(dir.x*nW.x+dir.z*nW.z);if(into<(air?.15:.35))continue;
+      if(F.stat&&this.floorLike(W,F,pl.pos.x-nW.x*(dist+.3),pl.pos.z-nW.z*(dist+.3)))continue;
+      if(!best||dist<best.dist)best={F,nW,top,rel,face,sg,u,dist};}
+    if(!best){this._push=0;this._pf=null;return;}
+    if(this._pf!==best.F){this._pf=best.F;this._push=0;}this._push+=dt;
+    const {F,rel}=best;const tired=pl.exhausted||pl.st<5;
+    if(air){if(rel<=2.3){this.mantle(pl,best);return;}if(F.box&&(pl.vy||0)<3&&!tired&&this._push>.04){this.climb(pl,best);return;}return;}
+    if(rel<=1.75){if(this._push>.14)this.mantle(pl,best);return;}
+    if(F.box&&this._push>.16){if(tired){if(!this._deny||Game.time>this._deny){this._deny=Game.time+2;UI.notify('Too tired to climb','warn');UI.flashStam&&UI.flashStam();}return;}this.climb(pl,best);}},
+  // local (geometry) foot point on the face of a box, `out` metres outside it; or a point on a round body's rim
+  facePt(F,fc,out){if(F.box){if(fc.face==='x')return {x:F.c.x+fc.sg*(F.hg.x+out/F.sx),z:fc.u};return {x:fc.u,z:F.c.z+fc.sg*(F.hg.z+out/F.sz)};}
+    return null;},
+  mantle(pl,b){const F=b.F;const Y=(pl.gy||0)+(pl.py||0);let a,e;
+    if(F.box){const l=this.loc(F,pl.pos.x,F.cw.y,pl.pos.z);a={x:l.x,z:l.z};e=this.facePt(F,b,-.6);}
+    else{const l=this.loc(F,pl.pos.x,F.cw.y,pl.pos.z);a={x:l.x,z:l.z};const c=this.loc(F,F.cw.x,F.cw.y,F.cw.z);const k=Math.max(0,1-(F.rh*.92-.6)/Math.max(.01,Math.hypot(a.x-c.x,a.z-c.z)*Math.max(F.sx,F.sz)));e={x:a.x+(c.x-a.x)*k,z:a.z+(c.z-a.z)*k};}
+    pl.state='fclimb';pl.act=null;pl.vel.set(0,0,0);pl.vy=0;pl.py=0;pl.gy=Y;pl.fc={F,m:{t:0,a,e,rel0:Y-b.top},n:b.nW};pl.yaw=Math.atan2(-b.nW.x,-b.nW.z);this._push=0;
+    Audio.play('dodge');pl.spend&&pl.spend(3);},
+  climb(pl,b){const F=b.F;const Y=(pl.gy||0)+(pl.py||0);pl.state='fclimb';pl.act=null;pl.vel.set(0,0,0);pl.vy=0;pl.py=0;pl.gy=Y;
+    pl.fc={F,face:b.face,sg:b.sg,u:b.u,v:Y-b.top,ph:0,leap:0,n:b.nW};pl.yaw=Math.atan2(-b.nW.x,-b.nW.z);this._push=0;
+    Audio.play('step',{v:.9});const Fl=Hunt.flags;if(Fl&&!Fl.climbTut){Fl.climbTut=1;UI.notify(Touch.on?'Climb · stick to move · Jump to leap':'Climb · W/S up and down · A/D sideways · Space to leap','perfect');}},
+  release(pl,push,vy){const c=pl.fc,W=Game.world;pl.fc=null;const Y=pl.gy||0;if(pl.state==='fclimb')pl.state='move';pl.act=null;pl.py=0;
+    let g=Y;try{g=W.heightAt(pl.pos.x,pl.pos.z);}catch(e){}pl.gy=Math.min(g,Y);pl.py=Math.max(0,Y-pl.gy);if(pl.py>.05||vy)pl.py=Math.max(pl.py,.02);pl.vy=vy||0;
+    if(c&&c.n&&push){pl.vel.x=c.n.x*push;pl.vel.z=c.n.z*push;}},
+  // ---- the hanging / pulling-up update (replaces Player.update while on a floater or a block)
+  update(pl,dt){const c=pl.fc,F=c.F,W=Game.world;pl.iframe=Math.max(0,(pl.iframe||0)-dt);pl.invuln=Math.max(0,(pl.invuln||0)-dt);pl.riftCd=Math.max(0,(pl.riftCd||0)-dt);
+    const PS=pl.wposes||pl.C.poses;
+    if(pl.dead||Game.world!==this.W||!this.vis(F.b)){this.release(pl,0,0);return;}
+    if(c.m){const M=c.m;M.t+=dt;const u=Math.min(1,M.t/.45),e=u*u*(3-2*u);const lx=M.a.x+(M.e.x-M.a.x)*e,lz=M.a.z+(M.e.z-M.a.z)*e;
+      const top=F.box?this.wld(F,M.e.x,F.c.y+F.hg.y,M.e.z).y:(this.topAt(F,this.wld(F,M.e.x,F.c.y,M.e.z).x,_b.z)??(this.topW(F)));
+      const p=this.wld(F,lx,F.c.y,lz);pl.pos.x=p.x;pl.pos.z=p.z;pl.gy=top+M.rel0*(1-Math.min(1,e*1.6));pl.py=0;pl.vy=0;
+      pl.speed=0;pl.animate(dt,{...PS.dodge,cr:.5},18);
+      if(u>=1){pl.fc=null;pl.state='move';pl.act=null;pl.gy=top;pl.py=0;pl.vy=0;pl.vel.set(0,0,0);Audio.play('step',{v:.7});this.stand=F.stat?null:F;}return;}
+    let [ax,az]=Climb.axes();let jump=false,drop=false;for(const ev of Input.consume()){if(ev==='jump')jump=true;if(ev==='dodge')drop=true;}
+    const a=this.axisW(F,c.face);const n={x:a.x*c.sg,z:a.z*c.sg};c.n=n;
+    if(drop||(jump&&az<-.3)){this.release(pl,drop?2.2:4,drop?0:6);Audio.play('dodge');return;}
+    if(jump&&c.leap<=0&&pl.st>12&&!pl.exhausted){c.leap=.32;pl.spend(16);Audio.play('dodge');}
+    let up=az,lat=ax;if(c.leap>0){c.leap-=dt;up=Math.max(up,0)+2.3;lat*=.4;}
+    const mv=Math.hypot(Math.max(-1,Math.min(1,up)),lat);
+    if(mv>.08&&c.leap<=0){pl.st=Math.max(0,pl.st-CLIMB_DRAIN*mv*(1-.25*Gear.skill(pl,'marathon'))*dt);pl.stDelay=.35;if(pl.st<=0){pl.exhausted=true;pl.stDelay=.9;UI.notify('Stamina depleted','warn');this.release(pl,1.5,0);return;}}
+    else pl.stDelay=Math.max(pl.stDelay||0,.2);
+    c.v+=(up>=0?up*CLIMB_UP:up*CLIMB_DN)*dt;
+    // sideways along the face, inside its edges
+    if(Math.abs(lat)>.05){const r={x:n.z,z:-n.x};const k2=c.face==='x'?'z':'x';const b2=this.axisW(F,k2);const sgn=(r.x*b2.x+r.z*b2.z)>=0?1:-1;const sc=c.face==='x'?F.sz:F.sx;const hg=c.face==='x'?F.hg.z:F.hg.x,cc=c.face==='x'?F.c.z:F.c.x;
+      c.u=clamp(c.u+lat*CLIMB_LAT*dt*sgn/sc,cc-hg+.35/sc,cc+hg-.35/sc);}
+    const tp=this.facePt(F,c,-.05);const top=this.wld(F,tp.x,F.c.y+F.hg.y,tp.z).y;
+    if(up>0&&c.v>=-.55){const o=this.facePt(F,c,.38),e=this.facePt(F,c,-.6);pl.fc={F,m:{t:0,a:o,e,rel0:c.v},n};Audio.play('dodge');pl.spend&&pl.spend(3);return;}
+    const p=this.facePt(F,c,.38);const w=this.wld(F,p.x,F.c.y,p.z);pl.pos.x=w.x;pl.pos.z=w.z;
+    const Y=top+c.v;const bot=top-F.hy*2;
+    if(Y+1.6<bot){this.release(pl,1,0);return;}
+    let fl=-1e4;try{this.busy=true;fl=W.heightAt(pl.pos.x,pl.pos.z);}catch(e){}finally{this.busy=false;}
+    if(Y<=fl+.02&&up<=0){pl.gy=fl;pl.fc=null;pl.state='move';pl.py=0;pl.vy=0;return;}
+    pl.gy=Math.max(Y,fl);pl.py=0;pl.vy=0;c.v=pl.gy-top;
+    pl.yaw=angDamp(pl.yaw,Math.atan2(-n.x,-n.z),10,dt);if(Math.abs(Input.mdx)<1&&!Touch.lookId)Cam.yaw=angDamp(Cam.yaw,pl.yaw,1.2,dt);
+    c.ph+=Math.hypot(up,lat)*dt*3.2;const k=Math.sin(c.ph*Math.PI);const B=PS.base;
+    pl.speed=0;pl.animate(dt,{...B,g:[-.24,.98+.14*k,.3],lh:[.24,.98-.14*k,.3],d:[-.25,-.85,-.45],tp:.2,cr:.3,lg:.6*k,ty:.05*k,tr:0,th:0},12);}};
+window.__AZfloat=Float;
+// the Void's "is there anything under you" sees the floaters too, so a jump down onto one is a landing, not a fall
+{const un=Abyss.under.bind(Abyss);Abyss.under=function(W,x,y,z){let b=un(W,x,y,z);for(const F of (W._fl?W._fl.mov:[])){if((x-F.cw.x)**2+(z-F.cw.z)**2>F.r*F.r+1)continue;const t=Float.topAt(F,x,z);if(t!==null&&t<=y+.5&&(b===null||t>b))b=t;}return b;};}
+{const pu=Player.prototype.update;Player.prototype.update=function(dt,cam){if(!this.isAI&&this.fc){if(this.state==='fclimb'){Float.update(this,dt);return;}const s=this.state;Float.release(this,0,0);this.state=s;}return pu.call(this,dt,cam);};}
+setTimeout(()=>{const tk=Game.tick.bind(Game);Game.tick=function(rdt,now){tk(rdt,now);try{Float.tick(Math.min(.1,rdt||0));}catch(e){console.warn('float',e);}};},0);
 
 /* =====================================================================
    13. GAME — state, loop, flow
