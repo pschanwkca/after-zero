@@ -14909,6 +14909,16 @@ window.__AZkin = Kin; window.__AZhounds = Hounds;
       // the edge: stop there, and give up the chase across the gap
       h.pos.x = h._ok.x; h.pos.z = h._ok.z; h.vel.set(0, 0, 0); h.R.root.position.set(h.pos.x, raw(W, h.pos.x, h.pos.z), h.pos.z); if (h.state === 'lunge' || h.state === 'chase') { h.state = 'alert'; h.t = 0; } } };
 }
+window.__AZnx = NexusRun; window.__AZch = window.__AZch || Chapter;
+// 3. The first hunt's ending plays clean: the tower falls with only its subtitles on screen (the first Void Core's
+//    white memory card waits until the scene is over and arrives as a quiet line instead), and stepping onto the
+//    Rift Spire's rock no longer stops you with a question.
+{ const mem0 = Chapter.memory.bind(Chapter);
+  Chapter.memory = function (id) { if (id !== 'city') return mem0(id); mem0(id); const el = $('memFlash'); if (el) { el.classList.remove('on'); clearTimeout(this.mTO); }
+    const n = this.cores(); const say = () => { try { UI.notify(I18N.t('Void Core') + ' ' + n + ' / 5 · ' + I18N.t('+1 skill point'), 'rare'); } catch (e) {} };
+    const wait = () => { if (typeof Cine !== 'undefined' && Cine.on) setTimeout(wait, 500); else say(); }; setTimeout(wait, 400); };
+  const ask0 = Choice.ask.bind(Choice); Choice.ask = function (key, done) { if (key === 'why') { done && done(); return; } return ask0(key, done); }; }
+window.__AZchoice = Choice;
 /* =====================================================================
    BUILD 3.16 · A NEW WEAPON IS AN EVENT
    Treasure still goes straight to the pouch with a line of text. A new weapon stops the world, the way the great
