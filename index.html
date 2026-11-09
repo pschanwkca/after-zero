@@ -14799,6 +14799,328 @@ Object.assign(ZH_DICT,{'Wayfarer\'s Hood':'旅人兜帽','Wayfarer\'s Coat':'旅
   'Climbing grips worn smooth on the Warden peaks. They remember every handhold.':'喺守望山脈磨到光滑嘅攀爬護手。佢記得每一個抓手位。',
   'Left on the high slag ridge, laced for a long way down.':'留喺高高嘅熔渣山脊上，鞋帶綁好，準備行好長一段落山路。',
   'Planted in the cairn on the Black-stone Cone, edge toward the sunrise. It only goes to whoever walks that far.':'插喺黑石火山錐頂嘅石堆度，劍鋒對住日出。只會留俾行得咁遠嘅人。'});
+/* =====================================================================
+   BUILD 3.16 · THE PACK IS NOT ONE ANIMAL
+   Every rift hound used to be the same hound. Now a pack mixes four kinds, each with its own look and its own way to
+   hurt you, so a fight asks for different answers:
+     · Skulker   — the hound you know: circles, flashes red, lunges.
+     · Brute     — half again as big, armoured in bone plates, slow; leaps and slams the ground (a ring you must leave).
+     · Spitter   — hunched, a glowing sac on its back; keeps its distance and lobs rift bile that burns where it lands.
+     · Swarmling — small, pale and quick; weak alone, it nips in fast and darts away.
+   Tutorial hounds, beasts and wraiths stay as they were.
+   ===================================================================== */
+const Kin = { shots: [], pools: [],
+  pick(d) { if (d.beast || d.wraith || d.trial || d.still || d.pack === 'S' || d.pack === 'T' || d.variant === 'skulker') return d.variant || null; if (d.variant) return d.variant;
+    const n = Math.abs(Math.sin(d.x * 12.9898 + d.z * 78.233) * 43758.5453) % 1; return n < .38 ? null : n < .58 ? 'brute' : n < .79 ? 'spitter' : 'swarm'; },
+  mats() { if (this.M) return this.M; const M = this.M = {};
+    M.brute = { skin: new THREE.MeshStandardMaterial({ color: 0x3a1f1a, roughness: .55, metalness: .15 }), sinew: new THREE.MeshStandardMaterial({ color: 0x5a2a22, roughness: .45 }), bone: new THREE.MeshStandardMaterial({ color: 0xd8cbb0, roughness: .55 }), eye: new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 1.2, .3) }) };
+    M.spit = { skin: new THREE.MeshStandardMaterial({ color: 0x14262a, roughness: .35, metalness: .25 }), sinew: new THREE.MeshStandardMaterial({ color: 0x1f3a3c, roughness: .4 }), bone: new THREE.MeshStandardMaterial({ color: 0x9fb8b0, roughness: .5 }), eye: new THREE.MeshBasicMaterial({ color: new THREE.Color(.6, 2.8, 1.4) }) };
+    M.swarm = { skin: new THREE.MeshStandardMaterial({ color: 0xcfc6b6, roughness: .6 }), sinew: new THREE.MeshStandardMaterial({ color: 0x8c7f70, roughness: .5 }), bone: new THREE.MeshStandardMaterial({ color: 0xf4efe6, roughness: .5 }), eye: new THREE.MeshBasicMaterial({ color: new THREE.Color(2.8, .5, 2.2) }) };
+    M.sac = new THREE.MeshBasicMaterial({ color: new THREE.Color(.5, 2.6, 1.3) }); M.bile = new THREE.MeshBasicMaterial({ color: new THREE.Color(.6, 2.8, 1.5) });
+    M.pool = new THREE.MeshBasicMaterial({ color: new THREE.Color(.25, 1.6, .8), transparent: true, opacity: .7, blending: THREE.AdditiveBlending, depthWrite: false });
+    return M; },
+  dress(h, v) { const M = this.mats(), H = Hounds.mats(), R = h.R, set = v === 'brute' ? M.brute : v === 'spitter' ? M.spit : M.swarm;
+    R.root.traverse(o => { if (!o.isMesh) return; const m = o.material; if (m === H.skin) o.material = set.skin; else if (m === H.sinew) o.material = set.sinew; else if (m === H.bone) o.material = set.bone; else if (m === H.eye) o.material = set.eye; });
+    if (v === 'brute') { // bone plates down the spine and a heavy brow
+      for (let i = 0; i < 4; i++) { const p = new THREE.Mesh(new THREE.BoxGeometry(.5 - i * .06, .08, .34), set.bone); p.position.set(0, .3 + (i === 0 ? .04 : 0), .36 - i * .3); p.rotation.x = -.18; R.body.add(p); }
+      const brow = new THREE.Mesh(new THREE.BoxGeometry(.34, .1, .16), set.bone); brow.position.set(0, .12, .12); R.head.add(brow); }
+    if (v === 'spitter') { const sac = new THREE.Mesh(new THREE.SphereGeometry(.26, 14, 10), M.sac); sac.position.set(0, .34, -.2); sac.scale.set(1, .8, 1.3); R.body.add(sac); h.sac = sac;
+      for (let i = 0; i < 5; i++) { const s = new THREE.Mesh(new THREE.ConeGeometry(.035, .32, 5), set.bone); const a = i / 5 * Math.PI * 2; s.position.set(Math.cos(a) * .2, .5, -.2 + Math.sin(a) * .2); s.rotation.set(Math.sin(a) * .5, 0, -Math.cos(a) * .5); R.body.add(s); } }
+    if (v === 'swarm') { for (let i = 0; i < 7; i++) { const s = new THREE.Mesh(new THREE.ConeGeometry(.03, .22, 4), set.bone); s.position.set(rand(-.15, .15), .28, .4 - i * .14); s.rotation.x = -.5; R.body.add(s); } } },
+  apply(h, v) { h.variant = v; if (!v) return; const P = { brute: { k: 1.45, hp: 170, dmg: 20, wk: 1.6, ls: .8, spd: .82 }, spitter: { k: .92, hp: 64, dmg: 10, wk: 1, ls: 1, spd: 1 }, swarm: { k: .62, hp: 32, dmg: 6, wk: .55, ls: 1.25, spd: 1.35 } }[v];
+    h.k = P.k; h.hp = h.max = P.hp; h.dmg = P.dmg; h.wk = P.wk; h.ls = P.ls; h.spd = P.spd; this.dress(h, v); h.R.root.scale.setScalar(P.k); },
+  hy(x, z) { const W = Game.world; return W && W.heightAt ? W.heightAt(x, z) : 0; },
+  // a lobbed glob of bile: arcs to where you stood, bursts, leaves a burning pool
+  spit(h, T) { const M = this.mats(); const from = new V3(h.pos.x, this.hy(h.pos.x, h.pos.z) + 1.1 * h.k, h.pos.z); const to = new V3(T.pos.x + (T.vel ? T.vel.x * .35 : 0), 0, T.pos.z + (T.vel ? T.vel.z * .35 : 0)); to.y = this.hy(to.x, to.z);
+    const m = new THREE.Mesh(new THREE.SphereGeometry(.18, 10, 8), M.bile); m.position.copy(from); scene.add(m); this.shots.push({ m, from, to, t: 0, D: clamp(hdist(from, to) / 11, .5, 1.1), T }); Audio.play('snap'); },
+  pool(p) { const M = this.mats(); const m = new THREE.Mesh(new THREE.CircleGeometry(1.7, 24).rotateX(-Math.PI / 2), M.pool.clone()); m.position.set(p.x, p.y + .06, p.z); scene.add(m); this.pools.push({ m, p: p.clone(), t: 0, tick: 0 });
+    try { FX.sparks.emit(p.clone().setY(p.y + .3), 18, { speed: 5, color: [.6, 2.8, 1.5], life: .5, size: .08, gravity: -10 }); } catch (e) {} },
+  tick(dt) { const pl = Game.player;
+    for (let i = this.shots.length - 1; i >= 0; i--) { const s = this.shots[i]; s.t += dt; const u = Math.min(1, s.t / s.D); s.m.position.lerpVectors(s.from, s.to, u); s.m.position.y += Math.sin(u * Math.PI) * 3.2;
+      if (u >= 1) { scene.remove(s.m); s.m.geometry.dispose(); this.shots.splice(i, 1); this.pool(s.to); const T = s.T && !s.T.dead ? s.T : pl; if (hdist(T.pos, s.to) < 1.7) T.hurt(10, false, s.to, 'bile' + Math.random()); } }
+    for (let i = this.pools.length - 1; i >= 0; i--) { const P = this.pools[i]; P.t += dt; P.m.material.opacity = .7 * Math.max(0, 1 - Math.max(0, P.t - 2) / .6) * (.8 + .2 * Math.sin(P.t * 9));
+      if ((P.tick -= dt) <= 0 && P.t < 2.4 && !pl.dead && hdist(pl.pos, P.p) < 1.6 && (pl.py || 0) < .3) { P.tick = .5; pl.hurt(4, false, P.p, 'pool' + Math.random()); }
+      if (P.t > 2.6) { scene.remove(P.m); P.m.geometry.dispose(); this.pools.splice(i, 1); } } },
+  clear() { for (const s of this.shots) scene.remove(s.m); for (const P of this.pools) scene.remove(P.m); this.shots = []; this.pools = []; }
+};
+{ const H = Hounds; const mk0 = H.make.bind(H), up0 = H.update.bind(H), cl0 = H.clear.bind(H);
+  H.make = function (d) { const h = mk0(d); try { Kin.apply(h, Kin.pick(d)); } catch (e) { console.warn('kin', e); } return h; };
+  H.clear = function () { cl0(); Kin.clear(); };
+  H.update = function (dt) { const pre = new Map(); for (const h of this.list) pre.set(h, h.state); up0(dt); const pl = Game.player;
+    for (const h of this.list) { if (!h.alive || !h.variant) continue; const was = pre.get(h); const T = h.T && h.T.root && h.T.root.visible && !h.T.dead ? h.T : pl; const toP = hdist(h.pos, T.pos);
+      if (h.variant === 'brute') { // half its lunges become a leap and a slam
+        if (h.state === 'lunge' && was === 'windup' && Math.random() < .55) { h.state = 'slam'; h.t = 0; h.vel.set(0, 0, 0); h.sl = T.pos.clone(); h.sl0 = h.pos.clone(); Audio.play('roar', { dur: .5 }); }
+        if (h.state === 'slam') { const u = Math.min(1, h.t / .55); h.pos.lerpVectors(h.sl0, h.sl, u * .85); h.R.root.position.set(h.pos.x, Kin.hy(h.pos.x, h.pos.z) + Math.sin(u * Math.PI) * 2.6, h.pos.z); h.R.root.rotation.x = -.3 + u * .5;
+          if (u >= 1 && !h.slamDone) { h.slamDone = true; const p = new V3(h.pos.x, Kin.hy(h.pos.x, h.pos.z) + .1, h.pos.z); try { FX.shock(p, 3.4, [1.8, 1.1, .5], .5); } catch (e) {} try { Game.shake(.35); } catch (e) {} Audio.play('hitHeavy');
+            for (const t of [pl, Party.comp].filter(Boolean)) if (!t.dead && t.root && t.root.visible !== false && hdist(t.pos, p) < 3.4 && (t.py || 0) < .6) t.hurt(h.dmg, true, p, 'slam' + h.t); }
+          if (h.t > 1.15) { h.state = 'recover'; h.t = 0; h.cool = rand(1.6, 2.6); h.slamDone = false; h.R.root.rotation.x = 0; } } }
+      else if (h.variant === 'spitter') { // keep away, then lob
+        if (h.sac) { h.sac.scale.setScalar(h.state === 'spit' ? 1 + Math.min(1, h.t / .55) * .5 : 1 + Math.sin(Game.time * 4) * .05); }
+        if ((h.state === 'windup' && was !== 'windup') || ((h.state === 'chase' || h.state === 'circle') && h.cool <= 0 && toP > 4 && toP < 15)) { h.state = 'spit'; h.t = 0; h.vel.set(0, 0, 0); Audio.play('growl'); }
+        if (h.state === 'spit') { h.yaw = turnToward(h.yaw, yawTo(h.pos, T.pos), 6 * dt); if (h.t > .55 && !h.spat) { h.spat = true; Kin.spit(h, T); } if (h.t > 1) { h.state = 'chase'; h.t = 0; h.spat = false; h.cool = rand(1.8, 2.8); } }
+        else if ((h.state === 'chase' || h.state === 'circle') && toP < 6.5) { const a = new V3(h.pos.x - T.pos.x, 0, h.pos.z - T.pos.z).normalize(); h.pos.addScaledVector(a, 3.6 * dt); } }
+      else if (h.variant === 'swarm') { // after a bite it darts off sideways
+        if (h.state === 'recover' && was === 'lunge') { const s = new V3(-Math.cos(h.yaw), 0, Math.sin(h.yaw)).multiplyScalar(Math.random() < .5 ? 7 : -7); h.vel.copy(s); h.t = .5; } } }
+    Kin.tick(dt); };
+}
+Object.assign(ZH_DICT, { 'Brute': '巨顎獵犬', 'Spitter': '噴膽獵犬', 'Swarmling': '群噬幼犬' });
+window.__AZkin = Kin; window.__AZhounds = Hounds;
+/* =====================================================================
+   BUILD 3.16 · FIXES FROM PLAY
+   1. The Void only throws you back once you are really falling: never while you hang on a floating block or climb,
+      never in the first second of a jump across a gap, never while a floater you could still catch is under you.
+   2. Nothing stands on air: hounds (and their kin) in the floating worlds check that something is drawn under their
+      feet, and a pack whose post was set out over the drop is moved onto the nearest real ground.
+   ===================================================================== */
+{ const A = Abyss;
+  A.air = 0;
+  // a floater within reach (beside you or below you) means the fall may still end on something
+  A.catchable = function (W, x, y, z) { for (const F of (W._fl ? W._fl.mov : [])) { if (!F.o || !F.o.visible) continue; const dx = x - F.cw.x, dz = z - F.cw.z; if (dx * dx + dz * dz > (F.r + 4) * (F.r + 4)) continue;
+      let t = null; try { t = Float.topAt(F, F.cw.x, F.cw.z); } catch (e) {} if (t === null || t > y - 26) return true; } return false; };
+  A.tick = function (dt) { const W = Game.world, pl = Game.player; if (!W || !pl || !this.on(W)) return; if (!W._abyss) this.adopt(W); if (Game.state !== 'playing' || pl.dead) { this.air = 0; return; }
+    if (typeof VoidRun !== 'undefined' && (VoidRun.fall || VoidRun.fly)) return; if (typeof VoidTiers !== 'undefined' && (VoidTiers.fly || VoidTiers.cd > 0)) { this.hist = []; this.safe = null; this.air = 0; return; }
+    const Y = (pl.gy || 0) + (pl.py || 0); const now = Game.time;
+    this.ct -= dt; if (this.ct <= 0 && (pl.py || 0) < .05 && pl.gy > -500 && pl.state !== 'climb' && pl.state !== 'fclimb') { this.ct = .2; this.hist.push({ x: pl.pos.x, z: pl.pos.z, y: pl.gy, yaw: pl.yaw, t: now, w: W.id }); if (this.hist.length > 20) this.hist.shift();
+      for (let i = this.hist.length - 1; i >= 0; i--) { const s = this.hist[i]; if (now - s.t >= .5 && s.w === W.id) { this.safe = s; break; } } if (!this.safe || this.safe.w !== W.id) this.safe = this.hist[0]; }
+    try { this.recallTick(dt, W, pl); this.pads(W); this.padTick(W, pl); } catch (e) { console.warn('abyss2', e); }
+    // hanging on a block, climbing, mantling: you are holding on, not falling
+    if (pl.fc || pl.state === 'fclimb' || pl.state === 'climb' || pl.state === 'mantle' || pl.state === 'ledge') { this.air = 0; this.bt = 0; return; }
+    const S = this.safe; if (!S || S.w !== W.id) return;
+    if (pl.gy > -500 && (pl.py || 0) < .05) { this.bt = 0; this.air = 0; this.lastY = Y; return; }
+    // count only real falling time: in the air and going down
+    const dy = Y - (this.lastY ?? Y); this.lastY = Y; if (pl.gy <= -500 || (pl.py || 0) > .05) this.air += dt; if (dy > .02) this.air = Math.min(this.air, .3);
+    this.bt -= dt; if (this.bt <= 0 || this.below === undefined) { this.bt = .2; this.below = this.under(W, pl.pos.x, Y, pl.pos.z); }
+    const B = this.below; if (B !== null && Y > B - 3) return;
+    if (this.catchable(W, pl.pos.x, Y, pl.pos.z) && Y > S.y - 40) return;
+    if ((Y < -400 && this.air > .7) || (Y < S.y - 16 && this.air > 1.1) || Y < S.y - 60) { this.air = 0; this.back(W, pl, S); } };
+}
+// ---- nothing stands on air
+{ const H = Hounds; const up0 = H.update.bind(H), sp0 = H.spawn.bind(H);
+  const raw = (W, x, z) => { Abyss.busy = true; try { return W.heightAt(x, z); } finally { Abyss.busy = false; } };
+  const ground = (W, x, z) => { const h = raw(W, x, z); return h > -500 && Abyss.floor(W, x, z, h); };
+  H.spawn = function (defs) { sp0(defs); const W = Game.world; if (!W || !Abyss.on(W)) return;
+    for (const h of this.list) { if (ground(W, h.pos.x, h.pos.z)) { h._ok = h.pos.clone(); continue; } let found = null;
+      for (let r = 1.5; r <= 18 && !found; r += 1.5) for (let a = 0; a < 12 && !found; a++) { const x = h.pos.x + Math.cos(a / 12 * 6.283) * r, z = h.pos.z + Math.sin(a / 12 * 6.283) * r; if (ground(W, x, z)) found = [x, z]; }
+      if (found) { h.pos.x = h.home.x = found[0]; h.pos.z = h.home.z = found[1]; h._ok = h.pos.clone(); h.R.root.position.set(h.pos.x, raw(W, h.pos.x, h.pos.z), h.pos.z); }
+      else { h.alive = false; h.state = 'dead'; h.t = 99; h.R.root.visible = false; } } };
+  H.update = function (dt) { up0(dt); const W = Game.world; if (!W || !Abyss.on(W)) return;
+    for (const h of this.list) { if (!h.alive || h.state === 'dead') continue; if (!h._ok) h._ok = h.pos.clone(); if (Math.hypot(h.pos.x - h._ok.x, h.pos.z - h._ok.z) < .45) continue;
+      if (ground(W, h.pos.x, h.pos.z)) { h._ok.copy(h.pos); continue; }
+      // the edge: stop there, and give up the chase across the gap
+      h.pos.x = h._ok.x; h.pos.z = h._ok.z; h.vel.set(0, 0, 0); h.R.root.position.set(h.pos.x, raw(W, h.pos.x, h.pos.z), h.pos.z); if (h.state === 'lunge' || h.state === 'chase') { h.state = 'alert'; h.t = 0; } } };
+}
+/* =====================================================================
+   BUILD 3.16 · A NEW WEAPON IS AN EVENT
+   Treasure still goes straight to the pouch with a line of text. A new weapon stops the world, the way the great
+   adventure games do it: the hunter turns to you and raises it, light rays wheel behind a drawn picture of the blade,
+   its name rises in large type with its stats and its story, a short fanfare plays, and the hunt waits until you are
+   ready (tap, click, E, Space, Enter or the A button). Equip it there and then with the button on the card.
+   ===================================================================== */
+const ItemGet = { on: false, q: [],
+  // a picture of the weapon, drawn (no image files): long blade, staff, great blade, dagger
+  icon(g, size = 300) { const c = document.createElement('canvas'); c.width = c.height = size * 2; const x = c.getContext('2d'); x.scale(2, 2); const s = size;
+    const edge = g.edge ? `rgb(${Math.min(255, g.edge[0] * 90) | 0},${Math.min(255, g.edge[1] * 90) | 0},${Math.min(255, g.edge[2] * 90) | 0})` : 'rgb(235,240,245)';
+    x.translate(s / 2, s / 2); x.rotate(-Math.PI / 4); x.shadowColor = edge; x.shadowBlur = 22; x.lineJoin = 'round';
+    const T = g.type || 'longsword';
+    if (T === 'staff') { // a tall staff crowned with a rift crystal
+      x.fillStyle = '#2a2730'; x.strokeStyle = 'rgba(255,255,255,.75)'; x.lineWidth = 1.5; x.beginPath(); x.roundRect(-5, -s * .3, 10, s * .72, 4); x.fill(); x.stroke();
+      for (const y of [-s * .2, s * .18, s * .36]) { x.fillStyle = '#8a8f99'; x.fillRect(-7, y, 14, 6); }
+      x.fillStyle = edge; x.beginPath(); x.moveTo(0, -s * .46); x.lineTo(14, -s * .34); x.lineTo(0, -s * .26); x.lineTo(-14, -s * .34); x.closePath(); x.fill();
+      x.strokeStyle = 'rgba(255,255,255,.9)'; x.stroke(); x.beginPath(); x.arc(0, -s * .34, 24, 0, Math.PI * 2); x.strokeStyle = edge; x.lineWidth = 1.2; x.stroke(); }
+    else { const L = T === 'danger' ? .5 : 1; const bw = T === 'danger' ? 9 : 11; // blade, guard, grip, pommel
+      const grad = x.createLinearGradient(-bw, 0, bw, 0); grad.addColorStop(0, '#c9ced6'); grad.addColorStop(.48, '#ffffff'); grad.addColorStop(.52, '#9aa1ab'); grad.addColorStop(1, '#5d636c');
+      x.fillStyle = grad; x.beginPath(); x.moveTo(-bw, s * .12); x.lineTo(-bw, -s * .3 * L); x.quadraticCurveTo(-bw * .6, -s * .4 * L, 0, -s * .46 * L); x.quadraticCurveTo(bw * .4, -s * .38 * L, bw, -s * .3 * L); x.lineTo(bw, s * .12); x.closePath(); x.fill();
+      x.shadowBlur = 0; x.strokeStyle = edge; x.lineWidth = 2.2; x.beginPath(); x.moveTo(bw - 1, s * .1); x.lineTo(bw - 1, -s * .3 * L); x.quadraticCurveTo(bw * .3, -s * .38 * L, 0, -s * .45 * L); x.stroke(); x.shadowBlur = 22;
+      x.fillStyle = '#1d1b22'; x.strokeStyle = 'rgba(255,255,255,.8)'; x.lineWidth = 1.4; x.beginPath(); x.roundRect(-34, s * .12, 68, 12, 5); x.fill(); x.stroke();
+      x.fillStyle = '#2b2530'; x.beginPath(); x.roundRect(-7, s * .16, 14, s * .22, 3); x.fill(); x.strokeStyle = 'rgba(255,255,255,.35)'; for (let i = 0; i < 6; i++) { x.beginPath(); x.moveTo(-7, s * .18 + i * 9); x.lineTo(7, s * .22 + i * 9); x.stroke(); }
+      x.fillStyle = edge; x.beginPath(); x.arc(0, s * .41, 8, 0, Math.PI * 2); x.fill(); }
+    return c; },
+  jingle() { const C = Audio.ctx; if (!C) return; const t = C.currentTime + .05; const out = Audio.master || C.destination;
+    // a rising four-note figure, a held chord under a shimmer
+    [[0, 523.25], [.12, 659.25], [.24, 783.99], [.38, 1046.5]].forEach(([d, f]) => { const o = C.createOscillator(), g = C.createGain(); o.type = 'triangle'; o.frequency.value = f; g.gain.setValueAtTime(0, t + d); g.gain.linearRampToValueAtTime(.16, t + d + .01); g.gain.exponentialRampToValueAtTime(.001, t + d + (d > .3 ? 1.6 : .35)); o.connect(g); g.connect(out); o.start(t + d); o.stop(t + d + 1.7); });
+    [261.63, 329.63, 392, 523.25].forEach(f => { const o = C.createOscillator(), g = C.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0, t + .38); g.gain.linearRampToValueAtTime(.06, t + .5); g.gain.exponentialRampToValueAtTime(.001, t + 2.4); o.connect(g); g.connect(out); o.start(t + .38); o.stop(t + 2.5); }); },
+  css() { if ($('igCss')) return; const st = document.createElement('style'); st.id = 'igCss'; st.textContent = `
+#itemGet{position:fixed;inset:0;z-index:60;display:grid;place-items:center;pointer-events:auto;background:radial-gradient(ellipse at center,rgba(0,0,0,.35),rgba(0,0,0,.82));opacity:0;transition:opacity .35s ease;font-family:"Cormorant Garamond",Georgia,serif;color:#fff;-webkit-user-select:none;user-select:none}
+#itemGet.on{opacity:1}
+#itemGet .igRays{position:absolute;left:50%;top:42%;width:min(130vw,1100px);aspect-ratio:1;transform:translate(-50%,-50%);background:repeating-conic-gradient(from 0deg,rgba(255,255,255,.13) 0deg 6deg,rgba(255,255,255,0) 6deg 18deg);-webkit-mask:radial-gradient(circle,#000 0,#000 18%,transparent 62%);mask:radial-gradient(circle,#000 0,#000 18%,transparent 62%);animation:igSpin 18s linear infinite}
+@keyframes igSpin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+#itemGet .igBox{position:relative;display:grid;justify-items:center;gap:6px;text-align:center;padding:0 24px;max-width:560px}
+#itemGet canvas{width:min(44vh,260px);height:min(44vh,260px);filter:drop-shadow(0 0 30px rgba(255,255,255,.35));animation:igPop .7s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes igPop{from{transform:scale(.2) rotate(-25deg);opacity:0}to{transform:none;opacity:1}}
+#itemGet .igTag{font-size:13px;letter-spacing:.5em;margin-right:-.5em;opacity:.8;text-transform:uppercase}
+#itemGet .igName{font-size:clamp(30px,6vw,52px);letter-spacing:.12em;font-weight:500;text-shadow:0 0 24px rgba(255,255,255,.4);animation:igUp .6s .25s ease both}
+#itemGet .igStats{font-size:15px;letter-spacing:.18em;opacity:.9;animation:igUp .6s .35s ease both}
+#itemGet .igDesc{font-size:16px;line-height:1.5;font-style:italic;opacity:.85;max-width:460px;animation:igUp .6s .45s ease both}
+#itemGet .igStars{letter-spacing:.4em;font-size:14px;color:#ffe6a8;animation:igUp .6s .3s ease both}
+@keyframes igUp{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+#itemGet .igBtns{display:flex;gap:14px;margin-top:14px;animation:igUp .6s .6s ease both}
+#itemGet button{all:unset;cursor:pointer;min-width:120px;min-height:46px;display:grid;place-items:center;padding:0 22px;border:1px solid rgba(255,255,255,.55);letter-spacing:.3em;font-size:15px;background:rgba(255,255,255,.06)}
+#itemGet button.pri{background:rgba(255,255,255,.92);color:#111}
+@media (max-height:480px){#itemGet canvas{width:34vh;height:34vh}#itemGet .igDesc{display:none}}`; document.head.appendChild(st); },
+  give(g, id) { this.q.push({ g, id }); if (!this.on) this.next(); },
+  next() { const it = this.q.shift(); if (!it) return; const { g, id } = it; this.css(); this.on = true; const pl = Game.player;
+    this.prev = Game.state; if (Game.state === 'playing') Game.state = 'itemget'; Input.keys = {}; Input.queue = []; try { document.exitPointerLock && document.exitPointerLock(); } catch (e) {}
+    try { pl.yaw = Cam.yaw + Math.PI; } catch (e) {}
+    const el = document.createElement('div'); el.id = 'itemGet'; const t = s => I18N.t(s);
+    const stats = [g.type === 'staff' ? t('Staff') : g.type === 'danger' ? t('Dagger') : t('Riftblade'), 'ATK ' + g.atk, g.crit ? t('Crit') + ' ' + g.crit + '%' : '', g.rift ? t('Rift') + ' +' + g.rift + '%' : ''].filter(Boolean).join('　·　');
+    el.innerHTML = `<div class="igRays"></div><div class="igBox"><div class="igTag">${t('You got a new weapon')}</div><div class="igName">${t(g.name)}</div><div class="igStars">${'★'.repeat(g.tier || 1)}</div><div class="igStats">${stats}</div><div class="igDesc">${t(g.desc || '')}</div>
+      <div class="igBtns"><button class="pri" id="igEquip">${t('Equip')}</button><button id="igOk">${t('Continue')}</button></div></div>`;
+    el.querySelector('.igBox').insertBefore(this.icon(g), el.querySelector('.igTag')); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
+    try { Audio.play('perfect'); } catch (e) {} this.jingle(); try { Game.shake && Game.shake(.2); } catch (e) {}
+    const close = equip => { if (!this.on) return; if (equip) { try { Gear.equip(id); UI.notify && UI.notify(I18N.t('Equipped') + ' · ' + I18N.t(g.name), 'perfect'); } catch (e) {} }
+      this.on = false; el.classList.remove('on'); setTimeout(() => el.remove(), 380); removeEventListener('keydown', key); if (Game.state === 'itemget') Game.state = this.prev === 'playing' ? 'playing' : this.prev; try { Input.requestLock && Input.requestLock(); } catch (e) {} setTimeout(() => this.next(), 420); };
+    const key = e => { if (['KeyE', 'Space', 'Enter', 'Escape'].includes(e.code)) { e.preventDefault(); close(false); } };
+    setTimeout(() => addEventListener('keydown', key), 500); el.querySelector('#igEquip').onclick = e => { e.stopPropagation(); close(true); }; el.querySelector('#igOk').onclick = e => { e.stopPropagation(); close(false); };
+    el.addEventListener('pointerdown', e => { if (e.target === el) close(false); });
+    // the gamepad's A closes it too
+    const pad = () => { if (!this.on) return; const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(p => p) : null; if (gp && gp.buttons[0] && gp.buttons[0].pressed && performance.now() - this.t0 > 600) { close(false); return; } requestAnimationFrame(pad); }; this.t0 = performance.now(); requestAnimationFrame(pad); }
+};
+{ const g0 = Gear.give.bind(Gear); Gear.give = function (id, quiet) { const g = GEARDB[id]; const isNew = g && !(id in this.owned);
+    if (g && g.kind === 'weapon' && isNew && !quiet) { g0(id, true); ItemGet.give(g, id); return; } return g0(id, quiet); }; }
+// while the card is up nothing moves; the frame still draws
+setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { if (this.state === 'itemget') { try { composer.render(); } catch (e) {} return; } return tk(rdt, now); }; }, 0);
+Object.assign(ZH_DICT, { 'You got a new weapon': '取得新武器', 'Equip': '裝備', 'Continue': '繼續', 'Equipped': '已裝備', 'Riftblade': '裂隙刀', 'Staff': '法杖', 'Dagger': '短刃', 'Crit': '暴擊', 'Rift': '裂隙' });
+window.__AZig = ItemGet;
+/* =====================================================================
+   BUILD 3.16 · THREE PLACES IN THE VOID THAT NOW DO SOMETHING
+   · The Upper Crown's warm room — sit in the chair and you rest: health and Kindle back, the hunt saved, and for
+     three minutes the warmth stays with you (slow healing). The one safe room in the Void.
+   · The Drowned Bell — strike it. The toll rolls out across the island: every hound within thirty metres reels,
+     and for forty seconds pillars of light stand over everything still hidden nearby (anchors, caches, lore).
+     Its stone collar no longer blocks the ground in its shadow, so you can walk right up under the lip.
+   · The Unlit Room — the mirror was only a thing to look at. Now, once you have looked, your reflection steps out
+     of the glass and fights you in the dark with your own moves. Beat it and the room's lamp finally lights,
+     and its blade is yours: the Unlit Edge.
+   ===================================================================== */
+GEARDB.ls_unlit = { kind: 'weapon', type: 'longsword', name: 'Unlit Edge', atk: 132, crit: 22, rift: 8, tier: 3, edge: [2.6, 2.6, 2.9], desc: 'Taken from your own reflection in a room no light had entered. It cuts first and is seen after.' };
+const Places = { warmT: 0, bellCd: 0, beams: [],
+  patch(W) { if (W._p316) return; W._p316 = 1;
+    // the bell: a smaller collar (the shadow is walkable), and a rope to strike it
+    for (const c of W.colliders) if (c.name === 'bell') { c.r = 2.7; c.x = 72.6; c.z = -30.4; }
+    W.interactDefs.push({ id: 'v316_bell', kind: 'bell316', pos: new V3(68.2, 0, -33.6), r: 2.6, label: 'Strike the bell', sub: 'Drowned Bell', hold: .5 });
+    // the Unlit Room: the chair sat a little too close to the doorway line; nudge it so you can walk round it
+    for (const c of W.colliders) if (c.name === 'unlit' && Math.abs(c.x - 106) < .1) { c.r = .55; }
+    W.interactDefs.push({ id: 'v316_mirror', kind: 'mirror316', pos: new V3(104 + 4.6, 0, -24 + 1.6), r: 2, label: 'Step up to your reflection', sub: 'The Unlit Room', hold: .8 });
+    // the room's lamp, dark until the reflection is beaten
+    const lamp = new THREE.PointLight(0xffd2a0, 0, 16, 2); lamp.position.set(104, 2 + 4.8, -24); W.group.add(lamp); this.lamp = lamp;
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(.18, 12, 8), new THREE.MeshBasicMaterial({ color: 0x333333 })); bulb.position.copy(lamp.position); W.group.add(bulb); this.bulb = bulb; if (Hunt.flags && Hunt.flags.unlit316) this.lightRoom(true); },
+  lightRoom(now) { if (!this.lamp) return; this.lamp.intensity = now ? 9 : this.lamp.intensity; this.bulb.material.color.setRGB(3, 2.4, 1.6); if (!now) { const t0 = Game.time; const iv = setInterval(() => { const u = Math.min(1, (Game.time - t0) / 2.5); this.lamp.intensity = 9 * u * (u < 1 ? .7 + .3 * Math.random() : 1); if (u >= 1) clearInterval(iv); }, 60); } },
+  // ---- the warm room
+  rest() { const pl = Game.player; pl.hp = pl.maxHp; pl.hpChip = 0; try { pl.stims = Kindle.max(); } catch (e) { pl.stims = Math.max(pl.stims || 0, 3); } this.warmT = 180;
+    try { Save.auto && Save.auto(); } catch (e) {} Audio.play('perfect'); UI.notify(I18N.t('Rested in the warm room · health and Kindle restored'), 'perfect'); },
+  // ---- the bell
+  toll() { const W = Game.world, pl = Game.player; if (this.bellCd > 0) { UI.notify(I18N.t('The bell is still ringing'), 'warn'); return; } this.bellCd = 45;
+    const C = Audio.ctx; if (C) { const t = C.currentTime + .02, out = Audio.master || C.destination; [[110, .5, 7], [110 * 2.76, .22, 5], [110 * 5.4, .12, 3], [110 * 1.5, .16, 6], [55, .4, 6]].forEach(([f, v, d]) => { const o = C.createOscillator(), g = C.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(v * .5, t); g.gain.exponentialRampToValueAtTime(.0008, t + d); o.connect(g); g.connect(out); o.start(t); o.stop(t + d + .1); }); }
+    const p = new V3(72, (W.heightAt ? W.heightAt(68, -33) : 2) + .4, -31); try { FX.shock(p, 30, [1.8, 1.8, 2.1], 1.6); FX.shock(p, 18, [1.4, 1.4, 1.8], 1.1); } catch (e) {} try { Game.shake(.4); } catch (e) {}
+    let n = 0; for (const h of Hounds.list) if (h.alive && hdist(h.pos, p) < 30) { h.state = 'hurt'; h.t = -2.3; h.vel.set(0, 0, 0); n++; }
+    // pillars over what is still hidden
+    for (const b of this.beams) W.group.remove(b.m); this.beams = [];
+    const cand = (Hunt.interact || []).filter(it => it.pos && it.id !== 'v316_bell' && hdist(it.pos, p) < 130).sort((a, b) => hdist(a.pos, p) - hdist(b.pos, p));
+    for (const it of cand) { if (this.beams.length >= 10) break; let vis = true; try { const v = VoidRun.visible(it); if (v === false) vis = false; } catch (e) {} if (!vis || it.done) continue;
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 60, 10, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.6, 2), transparent: true, opacity: .35, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      const y = it.y != null ? it.y : (W.heightAt ? W.heightAt(it.pos.x, it.pos.z) : 0); m.position.set(it.pos.x, y + 30, it.pos.z); m.userData.noFloor = 1; W.group.add(m); this.beams.push({ m, t: 40 }); }
+    UI.notify(I18N.t('The toll rolls out') + (n ? ' · ' + n + ' ' + I18N.t('hounds reel') : '') + (this.beams.length ? ' · ' + this.beams.length + ' ' + I18N.t('hidden places answer') : ''), 'perfect'); },
+  tick(dt) { const pl = Game.player, W = Game.world; if (!pl || !W) return; this.bellCd = Math.max(0, this.bellCd - dt);
+    if (this.warmT > 0 && Game.state === 'playing') { this.warmT -= dt; if (!pl.dead && pl.hp < pl.maxHp) pl.hp = Math.min(pl.maxHp, pl.hp + dt * 1.5); }
+    for (let i = this.beams.length - 1; i >= 0; i--) { const b = this.beams[i]; b.t -= dt; b.m.material.opacity = .35 * Math.min(1, b.t / 4) * (.8 + .2 * Math.sin(Game.time * 3 + i)); if (b.t <= 0) { b.m.parent && b.m.parent.remove(b.m); this.beams.splice(i, 1); } }
+    Mirror.tick(dt); } };
+
+// ---- the reflection: a dark copy of the hunter that fights inside the Unlit Room
+const Mirror = { on: false, U: { x: 104, z: -24, y: 2 },
+  build() { if (this.R) return this.R; const R = this.R = new THREE.Group(); const ink = new THREE.MeshStandardMaterial({ color: 0x050506, roughness: .25, metalness: .6 }); const edge = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 2.6, 2.9) });
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(.24, .62, 4, 10), ink); torso.position.y = 1.15; R.add(torso); const head = new THREE.Mesh(new THREE.SphereGeometry(.17, 14, 10), ink); head.position.y = 1.72; R.add(head);
+    const eyes = new THREE.Mesh(new THREE.BoxGeometry(.2, .025, .02), edge); eyes.position.set(0, 1.74, .15); R.add(eyes);
+    for (const s of [-1, 1]) { const leg = new THREE.Mesh(new THREE.CapsuleGeometry(.09, .62, 4, 8), ink); leg.position.set(s * .12, .45, 0); R.add(leg); }
+    const arm = new THREE.Group(); arm.position.set(.3, 1.4, 0); R.add(arm); const fore = new THREE.Mesh(new THREE.CapsuleGeometry(.07, .5, 4, 8), ink); fore.position.y = -.3; arm.add(fore);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(.05, .05, 1.25), edge); blade.position.set(0, -.6, .62); arm.add(blade); this.arm = arm; this.blade = blade;
+    R.visible = false; return R; },
+  start() { const W = Game.world; if (this.on || (Hunt.flags && Hunt.flags.unlit316)) return; const R = this.build(); if (R.parent !== W.group) W.group.add(R); this.on = true; this.hp = this.max = 460; this.state = 'emerge'; this.t = 0; this.cd = 1.2; this.hits = 0;
+    this.pos = new V3(this.U.x + 5.6, 0, this.U.z); this.yaw = -Math.PI / 2; R.visible = true; R.scale.setScalar(.01); Audio.play('teleRift'); UI.notify(I18N.t('Your reflection steps out of the glass'), 'warn');
+    try { FX.shock(new V3(this.pos.x, this.U.y + 1.5, this.pos.z), 3, [2, 2, 2.2], .5); } catch (e) {} },
+  stop(won) { this.on = false; if (this.R) this.R.visible = false; if (won) { Hunt.flags.unlit316 = 1; Places.lightRoom(false); Audio.play('perfect'); setTimeout(() => Gear.give('ls_unlit'), 1400); try { Save.auto && Save.auto(); } catch (e) {} } },
+  hit(dmg, from) { if (!this.on || this.state === 'emerge') return; this.hp -= dmg; this.flash = .12; try { FX.number(new V3(this.pos.x, this.U.y + 2, this.pos.z), Math.round(dmg), ''); FX.sparks.emit(new V3(this.pos.x, this.U.y + 1.2, this.pos.z), 14, { speed: 6, color: [2.4, 2.4, 2.6], life: .35, size: .07, gravity: -10 }); } catch (e) {}
+    Audio.play('hit'); try { Game.hitstop(.06); } catch (e) {} if (this.hp <= 0) { try { FX.shock(new V3(this.pos.x, this.U.y + 1, this.pos.z), 5, [2.4, 2.4, 2.6], .7); } catch (e) {} this.stop(true); return; }
+    if (++this.hits >= 3 && this.state !== 'blink') { this.hits = 0; this.state = 'blink'; this.t = 0; } },
+  tick(dt) { if (!this.on) return; const pl = Game.player, W = Game.world, U = this.U, R = this.R; if (!W || W.id !== 'void') { this.stop(false); return; }
+    if (pl.dead || hdist(pl.pos, new V3(U.x, 0, U.z)) > 11) { this.stop(false); UI.notify(I18N.t('The reflection sinks back into the glass'), ''); return; }
+    this.t += dt; this.cd -= dt; this.flash = Math.max(0, (this.flash || 0) - dt); const to = new V3(pl.pos.x - this.pos.x, 0, pl.pos.z - this.pos.z); const d = to.length(); const py = Math.atan2(to.x, to.z);
+    if (this.state === 'emerge') { R.scale.setScalar(Math.min(1, this.t / .8)); if (this.t > 1) { this.state = 'stalk'; this.t = 0; } }
+    else if (this.state === 'stalk') { this.yaw = turnToward(this.yaw, py, 6 * dt); if (d > 2.1) this.pos.addScaledVector(to.normalize(), 4.6 * dt); else if (this.cd <= 0) { this.state = 'wind'; this.t = 0; this.blade.material.color.setRGB(4, 4, 4.4); Audio.play('growl'); } }
+    else if (this.state === 'wind') { this.yaw = turnToward(this.yaw, py, (this.t < .25 ? 7 : 1) * dt); this.arm.rotation.x = -1.6 * Math.min(1, this.t / .45); if (this.t > .5) { this.state = 'cut'; this.t = 0; this.hitDone = false; Audio.play('snap'); } }
+    else if (this.state === 'cut') { this.arm.rotation.x = -1.6 + 3.2 * Math.min(1, this.t / .16); this.pos.addScaledVector(new V3(Math.sin(this.yaw), 0, Math.cos(this.yaw)), 7 * dt * (1 - this.t / .3));
+      if (!this.hitDone && this.t > .06 && d < 2.4 && Combat.arcHit(this.pos, this.yaw, pl.pos, 2.4, 1.1, .4)) { this.hitDone = true; pl.hurt(16, false, this.pos, 'mirror' + Game.time); }
+      if (this.t > .35) { this.state = 'stalk'; this.t = 0; this.cd = rand(.8, 1.6); this.arm.rotation.x = 0; this.blade.material.color.setRGB(2.6, 2.6, 2.9); } }
+    else if (this.state === 'blink') { // it steps through the dark to behind you
+      if (this.t < .01) { try { FX.shock(new V3(this.pos.x, U.y + 1, this.pos.z), 2, [2, 2, 2.2], .3); } catch (e) {} } R.visible = this.t > .35; if (this.t > .35 && !this.moved) { this.moved = true; const b = new V3(-Math.sin(pl.yaw), 0, -Math.cos(pl.yaw)); this.pos.set(pl.pos.x + b.x * 2.2, 0, pl.pos.z + b.z * 2.2); Audio.play('teleRift'); }
+      if (this.t > .5) { this.moved = false; this.state = 'wind'; this.t = 0; R.visible = true; } }
+    // the room's walls hold it
+    const dx = this.pos.x - U.x, dz = this.pos.z - U.z; const r = Math.hypot(dx, dz); if (r > 6.1) { this.pos.x = U.x + dx / r * 6.1; this.pos.z = U.z + dz / r * 6.1; }
+    R.position.set(this.pos.x, U.y + .05, this.pos.z); R.rotation.y = this.yaw; R.children[0].material.emissive && R.children[0].material.emissive.setRGB(this.flash > 0 ? .3 : 0, this.flash > 0 ? .3 : 0, this.flash > 0 ? .35 : 0); } };
+
+{ const b0 = WORLD_MODULES.void.build; WORLD_MODULES.void.build = function () { const W = b0.apply(this, arguments); try { Places.patch(W); } catch (e) { console.warn('places', e); } return W; }; }
+{ const vv = VoidRun.visible.bind(VoidRun); VoidRun.visible = function (it) { if (it.kind === 'bell316') return true; if (it.kind === 'mirror316') return !!(Hunt.flags && Hunt.flags.tr_unlit) && !(Hunt.flags && Hunt.flags.unlit316) && !Mirror.on; return vv(it); }; }
+{ const hu = Hunt.use.bind(Hunt); Hunt.use = function (it) { if (it && it.kind === 'bell316') { Places.toll(); return; } if (it && it.kind === 'mirror316') { Mirror.start(); return; }
+    const r = hu(it); if (it && it.id === 'v3_crown') { try { Places.rest(); } catch (e) {} } return r; }; }
+// the player's cuts and blasts reach the reflection
+{ const sw = Hounds.swing.bind(Hounds); Hounds.swing = function (pl, act) { sw(pl, act); if (!Mirror.on || pl.isAI || act.hits.has(Mirror)) return; const d = act.def; if (Combat.arcHit(pl.pos, pl.yaw, Mirror.pos, d.reach + .5, d.arc, .55)) { act.hits.add(Mirror); let dmg = d.dmg * (act.cm || 1); try { dmg = Gear.outgoing(pl, dmg, false).dmg; } catch (e) {} Mirror.hit(dmg, pl.pos); } };
+  const hr = Hounds.hitRadius.bind(Hounds); Hounds.hitRadius = function (p, r, dmg, seen, pl) { hr(p, r, dmg, seen, pl); if (Mirror.on && !(seen && seen.has(Mirror)) && hdist(Mirror.pos, p) < r + .5) { seen && seen.add(Mirror); Mirror.hit(dmg, p); } }; }
+setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); if (this.state === 'playing') { try { Places.tick(Math.min(.1, rdt || 0)); } catch (e) { console.warn('places', e); } } }; }, 0);
+Object.assign(ZH_DICT, { 'Strike the bell': '敲響大鐘', 'Step up to your reflection': '走近你的倒影', 'Unlit Edge': '無光之刃', 'Taken from your own reflection in a room no light had entered. It cuts first and is seen after.': '從一間從未有光進入的房間裡，自你的倒影手中奪來。先斬落，之後先被看見。',
+  'Rested in the warm room · health and Kindle restored': '在溫暖的房間休息 · 生命與燼火已回復', 'The bell is still ringing': '大鐘的餘音未散', 'The toll rolls out': '鐘聲盪開', 'hounds reel': '隻獵犬被震暈', 'hidden places answer': '處隱藏之地回應',
+  'Your reflection steps out of the glass': '你的倒影從鏡中走出', 'The reflection sinks back into the glass': '倒影沉回鏡中' });
+window.__AZplaces = Places; window.__AZmirror = Mirror;
+/* =====================================================================
+   BUILD 3.16 · MOBILE CONTROLS, REDONE THE WAY PHONE ACTION GAMES DO THEM
+   One big round Attack under the right thumb; the moves you chain from it (iaido, Shadow Cut, dodge) on an inner arc
+   one thumb-roll away; the occasional ones (lock-on, jump, partners, flash pod, Kindle) on an outer arc, smaller.
+   Round glass buttons, no rotated diamonds, no labels on top of the world, counts as small badges, a press that
+   visibly gives. Sizes follow the screen's height so a phone in landscape still fits the whole arc. The top-right row
+   shrinks to quiet icons, and the movement stick shows where it lives.
+   ===================================================================== */
+{ const css = `
+html.touch #touchUI{--A:clamp(56px,19vh,86px);--cr:calc(env(safe-area-inset-right,0px) + 22px + var(--A)/2);--cb:calc(env(safe-area-inset-bottom,0px) + 18px + var(--A)/2)}
+html.touch #touchUI .tb{border-radius:50%!important;transform:none!important;background:rgba(10,12,16,.38)!important;border:1.5px solid rgba(255,255,255,.42)!important;box-shadow:0 2px 14px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.06)!important;opacity:.9!important;display:grid!important;place-items:center;padding:0!important;transition:transform .08s ease,background .15s,opacity .3s!important}
+html.touch #touchUI .tb>*{transform:none!important}
+html.touch #touchUI .tb svg{width:52%!important;height:52%!important;stroke-width:2!important}
+html.touch #touchUI .tb:active,html.touch #touchUI .tb.on{transform:scale(.9)!important;background:rgba(255,255,255,.22)!important;opacity:1!important}
+html.touch #touchUI .tb .tl{display:none!important}
+html.touch #touchUI .tb em{position:absolute!important;right:-4px!important;top:-4px!important;left:auto!important;bottom:auto!important;min-width:18px;height:18px;border-radius:9px!important;background:#f2f2f2!important;color:#111!important;font:600 11px/18px var(--f-serif,Georgia)!important;text-align:center;padding:0 4px!important;transform:none!important}
+html.touch #touchUI .tb em:empty{display:none}
+html.touch #tSkillCd{right:auto!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;background:rgba(0,0,0,.55)!important;color:#fff!important;min-width:28px!important;height:28px!important;line-height:28px!important;border-radius:50%!important;font-size:13px!important}
+html.touch #tFan{position:absolute!important;inset:0!important;pointer-events:none;transform:none!important;width:auto!important;height:auto!important}
+html.touch #tFan .tb{position:absolute!important;pointer-events:auto;left:auto!important;top:auto!important;margin:0!important;width:var(--s)!important;height:var(--s)!important;right:calc(var(--cr) - var(--dx) * var(--A) - var(--s) / 2)!important;bottom:calc(var(--cb) + var(--dy) * var(--A) - var(--s) / 2)!important}
+html.touch #tFan .tb-atk{--s:var(--A);--dx:0;--dy:0;background:rgba(255,255,255,.14)!important;border-width:2px!important;border-color:rgba(255,255,255,.75)!important}
+html.touch #tFan .tb-atk svg{width:46%!important;height:46%!important}
+html.touch #tFan .tb-heavy{--s:calc(var(--A)*.66);--dx:-1.05;--dy:0}
+html.touch #tFan .tb-skill{--s:calc(var(--A)*.66);--dx:-.75;--dy:.75}
+html.touch #tFan .tb-dodge{--s:calc(var(--A)*.66);--dx:0;--dy:1.06}
+html.touch #tFan .tb-lock{--s:calc(var(--A)*.5);--dx:-.17;--dy:1.95}
+html.touch #tFan .tb-jump{--s:calc(var(--A)*.56);--dx:-.97;--dy:1.69}
+html.touch #tFan .tb-sup{--s:calc(var(--A)*.5);--dx:-1.6;--dy:1.12}
+html.touch #tFan .tb-flash{--s:calc(var(--A)*.5);--dx:-1.92;--dy:.5}
+html.touch #tFan .tb-heal{--s:calc(var(--A)*.5);--dx:-1.92;--dy:-.34}
+html.touch #tFan .tb-lock.on{border-color:#fff!important;box-shadow:0 0 16px rgba(255,255,255,.6)!important}
+html.touch #touchUI #tUse{position:absolute!important;right:calc(var(--cr) + var(--A) * 2.45)!important;bottom:calc(var(--cb) - var(--A) * .28)!important;left:auto!important;top:auto!important;transform:none!important;border-radius:999px!important;width:auto!important;min-width:110px;height:calc(var(--A)*.56)!important;padding:0 18px!important;background:rgba(255,255,255,.9)!important;color:#111!important;border:0!important;opacity:1!important}
+html.touch #touchUI #tUse #tUseLbl{font:600 14px/1 var(--f-serif,Georgia)!important;letter-spacing:.14em;color:#111!important;transform:none!important}
+html.touch #tTop{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center;left:auto!important;bottom:auto!important;width:auto!important;height:auto!important;gap:10px!important;top:calc(env(safe-area-inset-top,0px) + 12px)!important;right:calc(env(safe-area-inset-right,0px) + 14px)!important}
+html.touch #tTop .tb{width:38px!important;height:38px!important;background:rgba(10,12,16,.28)!important;border-color:rgba(255,255,255,.3)!important;opacity:.75!important}
+html.touch #tTop .tb svg{width:56%!important;height:56%!important}
+html.touch .tb-sprint{border-radius:50%!important;transform:none!important;width:calc(var(--A)*.5)!important;height:calc(var(--A)*.5)!important;left:calc(env(safe-area-inset-left,0px) + 28vw)!important;bottom:calc(env(safe-area-inset-bottom,0px) + 22px)!important;top:auto!important;right:auto!important}
+html.touch #tStickZone::before{content:"";position:absolute;left:calc(env(safe-area-inset-left,0px) + 30px);bottom:calc(env(safe-area-inset-bottom,0px) + 22px);width:calc(var(--A)*1.45);height:calc(var(--A)*1.45);border-radius:50%;border:1.5px solid rgba(255,255,255,.18);background:radial-gradient(circle,rgba(255,255,255,.06),rgba(255,255,255,0) 70%);pointer-events:none;transition:opacity .2s}
+html.touch #tStickZone.on::before{opacity:0}
+html.touch #tStick{filter:none!important}
+html.touch #tStick i{border-radius:50%!important;background:rgba(255,255,255,.85)!important;box-shadow:0 0 12px rgba(255,255,255,.5)!important}
+html.touch #hud .obj{top:calc(env(safe-area-inset-top,0px) + 140px)!important;max-width:min(260px,32vw)!important}
+@media (max-height:420px){html.touch #hud .obj{top:calc(env(safe-area-inset-top,0px) + 120px)!important}html.touch #hud .obj .task{font-size:12px!important}html.touch #hud .obj .zone{font-size:15px!important}html.touch .vh-comp,html.touch #mini{width:78px!important;height:78px!important}}
+`;
+  const st = document.createElement('style'); st.id = 'mob316'; st.textContent = css; document.head.appendChild(st);
+  // lock-on lives in the combat arc, not up in the menu row
+  const move = () => { const fan = $('tFan'), top = $('tTop'); if (!fan || !top) return false; const b = top.querySelector('[data-t="lock"]'); if (b && b.parentElement !== fan) { b.classList.remove('tb-s'); b.classList.add('tb-lock'); fan.appendChild(b); } return true; };
+  if (!move()) { const iv = setInterval(() => { if (move()) clearInterval(iv); }, 500); setTimeout(() => clearInterval(iv), 60000); }
+  // the lock button lights while you are locked on; the stick's base hides while you hold the stick
+  setInterval(() => { const b = document.querySelector('#tFan .tb-lock'); if (b) { let on = false; try { on = !!(Game.player && (Game.player.lock || (typeof Cam !== 'undefined' && Cam.lock))); } catch (e) {} b.classList.toggle('on', on); }
+    const z = $('tStickZone'); if (z) { let held = false; try { held = !!(typeof Touch !== 'undefined' && Touch.stickId != null); } catch (e) {} z.classList.toggle('on', held); } }, 200);
+}
 
 /* =====================================================================
    13. GAME — state, loop, flow
