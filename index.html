@@ -16197,12 +16197,12 @@ const Accent = {
     city: { c: 0x7fb4ff, i: .0, kind: null } },
   light() { if (this.L) return this.L; const L = this.L = new THREE.DirectionalLight(0xffffff, 0); L.castShadow = false; scene.add(L); scene.add(L.target); return L; },
   glowTex() { if (this.gt) return this.gt; const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.35, 'rgba(255,255,255,.35)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); this.gt = new THREE.CanvasTexture(c); return this.gt; },
-  spots(W, n) { const c = W._cg; if (!c || !Climb) return []; let seed = 1234 + W.id.length * 77; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647; const out = []; const sp = W.spawn || { x: 0, z: 0 };
+  spots(W, n) { const c = W._cg; const GH = c ? (x, z) => Climb.gh(W, x, z) : (x, z) => { try { const v = W.heightAt(x, z); return Number.isFinite(v) ? v : -1e4; } catch (e) { return -1e4; } }; let seed = 1234 + W.id.length * 77; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647; const out = []; const sp = W.spawn || { x: 0, z: 0 };
     // gather where the hunter actually goes: spawn, survey sites, interactables, hound posts, rift anchors
     const AN = [sp]; for (const L of [W.survey, W.interactDefs, W.hounds]) for (const o of L || []) { const x = o.x ?? (o.pos && o.pos.x) ?? (o.at && o.at[0]) ?? (o.post && o.post[0]), z = o.z ?? (o.pos && o.pos.z) ?? (o.at && o.at[1]) ?? (o.post && o.post[1]); if (Number.isFinite(x) && Number.isFinite(z)) AN.push({ x, z }); }
     try { for (const T of TOWERS) if (T.world === W.id) { const a = T.at(W); AN.push({ x: a.x, z: a.z }); } } catch (e) {}
-    for (let t = 0; t < 1400 && out.length < n; t++) { const A0 = AN[Math.floor(rnd() * AN.length)]; const an = rnd() * 6.283, rr = 7 + rnd() * 18; const x = A0.x + Math.cos(an) * rr, z = A0.z + Math.sin(an) * rr; const h = Climb.gh(W, x, z); if (h < -100) continue;
-      let ok = true; for (const [dx, dz] of [[1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]]) { const h2 = Climb.gh(W, x + dx, z + dz); if (!(Math.abs(h2 - h) < .25)) { ok = false; break; } } if (!ok) continue;
+    for (let t = 0; t < 1400 && out.length < n; t++) { const A0 = AN[Math.floor(rnd() * AN.length)]; const an = rnd() * 6.283, rr = 7 + rnd() * 18; const x = A0.x + Math.cos(an) * rr, z = A0.z + Math.sin(an) * rr; const h = GH(x, z); if (h < -100) continue;
+      let ok = true; for (const [dx, dz] of [[1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]]) { const h2 = GH(x + dx, z + dz); if (!(Math.abs(h2 - h) < .25)) { ok = false; break; } } if (!ok) continue;
       try { if (W._rim && typeof Rim !== 'undefined' && Rim.sd(W, x, z) > -5) continue; } catch (e) {} if (Math.hypot(x - sp.x, z - sp.z) < 7) continue;
       try { const hb = W.heightAt(x, z); if (Math.abs(hb - h) > .4) continue; } catch (e) {}
       if ((W.colliders || []).some(q => Math.hypot(q.x - x, q.z - z) < (q.r || 1) + 1.6)) continue; if (out.some(o => Math.hypot(o.x - x, o.z - z) < 11)) continue; out.push({ x, z, y: h, r: rnd() }); }
@@ -16231,7 +16231,7 @@ const Accent = {
       g.traverse(o => { o.userData.noDetail = 1; }); if (C.kind !== 'fleck') W.colliders.push({ x: p.x, z: p.z, r: .62, name: 'accent' }); W._acc.push({ g, p, pool }); }
     W._accBuilt = 1; },
   tick(dt) { const W = Game.world, pl = Game.player; if (!W || !pl) return; const C = this.CFG[W.id] || { c: 0xffffff, i: 0 };
-    if (!W._accBuilt && W._cgAdopted) { try { this.build(W); } catch (e) { console.warn('accent', e); W._accBuilt = 1; } }
+    if (!W._accBuilt && (W._cgAdopted || (!W._cg && Game.time - (W._accT0 ?? (W._accT0 = Game.time)) > 1.5))) { try { this.build(W); } catch (e) { console.warn('accent', e); W._accBuilt = 1; } }
     // the counter light: opposite the sun, low, in the world's complementary hue
     const L = this.light(); L.color.setHex(C.c); L.intensity = damp(L.intensity, C.i, 3, dt); const K = W.key || W.moon;
     let kx = .5, kz = .5; if (K) { const dx = K.position.x - K.target.position.x, dz = K.position.z - K.target.position.z; const dl = Math.hypot(dx, dz) || 1; kx = dx / dl; kz = dz / dl; }
