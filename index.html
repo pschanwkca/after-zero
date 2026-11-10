@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.20</small>
+        <small>Rift Hunter field prototype · Build 3.20.1</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.20":"裂隙獵人 實地原型 · Build 3.20","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.20.1":"裂隙獵人 實地原型 · Build 3.20.1","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -16246,16 +16246,26 @@ const Accent = {
 window.__AZaccent = Accent;
 
 // ---------------------------------------------------------------- the camera never ends inside rock
-const CamGuard = { d: null, _h: new V3(), _v: new V3(), _p: new V3(),
-  update(rdt) { const W = Game.world, pl = Game.player; if (!W || !pl || !W._cg || Game.state !== 'playing' || (typeof Cine !== 'undefined' && Cine.on)) { this.d = null; return; }
+const CamGuard = { d: null, _h: new V3(), _v: new V3(), _p: new V3(), ray: new THREE.Raycaster(), list: null, W: null, t: 0, hitT: null, scanT: 0,
+  // everything solid in the world: opaque lit meshes (merged batches included), never the hunter, monsters, decals or glow
+  gather(W) { const L = []; W.group.updateMatrixWorld(true); W.group.traverse(o => { if (!o.isMesh || o.isSkinnedMesh || o.isPoints || o.isSprite || o.userData.xr || !o.visible) return; let p = o; while (p) { if (!p.visible) return; p = p.parent; }
+      const m = Array.isArray(o.material) ? o.material[0] : o.material; if (!m || m.transparent || m.blending === THREE.AdditiveBlending || m.isShaderMaterial || m.depthWrite === false) return;
+      if (!o.geometry || !o.geometry.attributes.position) return; if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); const r = o.geometry.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z); if (r < .45) return; if (o.userData.camThin == null) { const b = new THREE.Box3().setFromObject(o), z = b.getSize(new V3()); o.userData.camThin = Math.min(z.x, z.z) < .9 && z.y > 1.2 ? 1 : 0; } L.push(o); }); return L; },
+  update(rdt) { const W = Game.world, pl = Game.player; if (!W || !pl || Game.state !== 'playing' || (typeof Cine !== 'undefined' && Cine.on)) { this.d = null; return; }
+    if (this.W !== W) { this.W = W; this.list = null; this.d = null; this.hitT = null; }
+    if (!this.list && (W._cgAdopted || !W._cg)) { try { this.list = this.gather(W); } catch (e) { this.list = []; } }
+    this.scanT -= rdt; if (this.scanT <= 0 && this.list) { this.scanT = 6; try { this.list = this.gather(W); } catch (e) {} }
     const head = this._h.set(pl.pos.x, (pl.gy || 0) + 1.45 + (pl.py || 0), pl.pos.z); const v = this._v.copy(camera.position).sub(head); const len = v.length(); if (len < 1) return; v.divideScalar(len);
-    let hit = null; for (let t = .7; t <= len + .25; t += .25) { const p = this._p.copy(head).addScaledVector(v, Math.min(t, len)); const h = Climb.gh(W, p.x, p.z); if (h < -100) continue;
-      // solid where the grid's top is above the ray, unless it is far above (a bridge or a roof overhead, not a rock face)
-      if (h > p.y - .22 && h - p.y < 4.5) { hit = t; break; } }
-    const want = hit == null ? null : Math.max(1.05, hit - .45);
-    if (want != null) this.d = this.d == null ? Math.min(len, want) : (want < this.d ? damp(this.d, want, 26, rdt) : damp(this.d, want, 6, rdt));
-    else if (this.d != null) { this.d = damp(this.d, len + 1, 5, rdt); if (this.d >= len) this.d = null; }
-    if (this.d != null && this.d < len) camera.position.copy(head).addScaledVector(v, this.d); } };
+    // the real geometry between her head and the camera, 30 times a second
+    this.t -= rdt; if (this.t <= 0 && this.list) { this.t = 1 / 30; const R = this.ray; R.camera = camera; R.near = .35; R.far = len + .3; R.set(head, v); R.layers.enableAll();
+      let hit = null; try { const H = R.intersectObjects(this.list, false); for (const h of H) { const o = h.object; if (o.userData.camThin || (typeof CamOcc !== 'undefined' && CamOcc.faded.has(o))) continue; if (h.distance > .35) { hit = h.distance; break; } } } catch (e) {}
+      // and the solid-height grid for rock the meshes do not cover: only where the ray is inside a solid chunk
+      if (W._cg) for (let t = .7; t <= len; t += .3) { if (hit != null && t >= hit) break; const p = this._p.copy(head).addScaledVector(v, t); const h = Climb.gh(W, p.x, p.z); if (h < -100) continue; if (h > p.y - .2 && h - p.y < 1.4) { hit = t; break; } }
+      this.hitT = hit; }
+    const hit = this.hitT; const want = hit == null ? null : Math.max(.9, hit - .4);
+    if (want != null) this.d = this.d == null ? Math.min(len, want) : (want < this.d ? damp(this.d, want, 30, rdt) : damp(this.d, want, 5, rdt));
+    else if (this.d != null) { this.d = damp(this.d, len + 1, 4, rdt); if (this.d >= len) this.d = null; }
+    if (this.d != null && this.d < len) { camera.position.copy(head).addScaledVector(v, this.d); } } };
 window.__AZcamg = CamGuard;
 
 setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); const d = Math.min(.1, rdt || 0); try { Scarf.tick(d); } catch (e) { console.warn('scarf', e); } try { Accent.tick(d); } catch (e) { console.warn('accent', e); } };
