@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.18.2</small>
+        <small>Rift Hunter field prototype · Build 3.18.3</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.18.2":"裂隙獵人 實地原型 · Build 3.18.2","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.18.3":"裂隙獵人 實地原型 · Build 3.18.3","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -15701,7 +15701,7 @@ const Undertow = { C: null,
     const rings = []; for (let i = 0; i < 4; i++) { const r = addM(new THREE.RingGeometry(5 + i * 2.4, 5.08 + i * 2.4, 96).rotateX(-Math.PI / 2), [.7, 1.9, 2.2], .45 - i * .08); r.position.y = .04; g.add(r); rings.push(r); }
     const sig = addM(new THREE.CircleGeometry(3.6, 48).rotateX(-Math.PI / 2), [.8, 2, 2.3], .5); sig.material.map = TEX.sigil; sig.position.y = .06; g.add(sig);
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: new THREE.Color(.5, 1.3, 1.6), transparent: true, opacity: .55, blending: THREE.AdditiveBlending, depthWrite: false })); halo.scale.set(16, 10, 1); halo.position.y = 7; halo.renderOrder = 1; g.add(halo);
-    const lamp = new THREE.PointLight(0x8fe6ff, 40, 28, 1.6); lamp.position.y = 3.5; g.add(lamp);
+    if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) { const lamp = new THREE.PointLight(0x8fe6ff, 40, 28, 1.6); lamp.position.y = 3.5; g.add(lamp); }
     // stones that fell upwards
     const stM = new THREE.MeshStandardMaterial({ color: 0x26242c, roughness: .9, flatShading: true, emissive: 0x0a2a30, emissiveIntensity: .5 }); const stones = [];
     for (let i = 0; i < 14; i++) { const s = ro(new THREE.Mesh(new THREE.DodecahedronGeometry(rand(.35, 1.1), 0), stM)); const a = i / 14 * 6.283 + rand(-.2, .2), r = rand(6, 19), y = rand(1.6, 6 + r * .4); s.castShadow = true; g.add(s); stones.push({ s, a, r, y, ph: rand(0, 6), sp: rand(.03, .08) * (i % 2 ? 1 : -1) }); }
@@ -15777,7 +15777,7 @@ const Readable = { base: { exp: null, hemi: null }, last: { exp: null, hemi: nul
     try { const e = renderer.toneMappingExposure; if (this.last.exp == null || Math.abs(e - this.last.exp) > 1e-6) this.base.exp = e; const want = this.base.exp * (1 + .24 * this.k); renderer.toneMappingExposure = want; this.last.exp = want;
       if (W.hemi) { if (this.hW !== W) { this.hW = W; this.last.hemi = null; } const h = W.hemi.intensity; if (this.last.hemi == null || Math.abs(h - this.last.hemi) > 1e-6) this.base.hemi = h; const wh = this.base.hemi * (1 + .7 * this.k) + .25 * this.k; W.hemi.intensity = wh; this.last.hemi = wh; } } catch (e) {}
     // the travelling light: on the hunter, a little toward the camera; a wide faint fill above
-    const L = this.light(); const Y = (pl.gy || 0) + (pl.py || 0); const cx = camera.position.x - pl.pos.x, cz = camera.position.z - pl.pos.z, cl = Math.hypot(cx, cz) || 1;
+    const Y0 = (pl.gy || 0) + (pl.py || 0); if (window.__AZlite) return; const L = this.light(); const Y = (pl.gy || 0) + (pl.py || 0); const cx = camera.position.x - pl.pos.x, cz = camera.position.z - pl.pos.z, cl = Math.hypot(cx, cz) || 1;
     L.position.set(pl.pos.x + cx / cl * 1.6, Y + 2.4, pl.pos.z + cz / cl * 1.6); L.intensity = 26 * this.k;
     this.F.position.set(pl.pos.x, Y + 9, pl.pos.z); this.F.intensity = 55 * this.k;
     // x-ray twins: built for every rig the hunter wears, shown only while playing
@@ -15798,19 +15798,21 @@ setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, n
      and then a piece of the edge near you breaks away and falls;
    · step off and you fall. The Void throws you back onto the ground you jumped from, and it costs a fifth of your health.
    ===================================================================== */
+const RIM_LITE = /full/.test(location.hash) ? false : (/lite/.test(location.hash) || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)));
+window.__AZlite = RIM_LITE;
 const RIM_WORLDS = new Set(['city', 'modern', 'arcane', 'mech', 'demon']);
 const RimU = { rimSdf: { value: null }, rimBox: { value: new THREE.Vector4(0, 0, 1, 1) }, rimOn: { value: 0 }, rimT: { value: 0 } };
 const RIM_NOISE = `float rh21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 float rvn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(rh21(i), rh21(i + vec2(1, 0)), f.x), mix(rh21(i + vec2(0, 1)), rh21(i + vec2(1, 1)), f.x), f.y); }
-float rfbm(vec2 p){ float s = 0., a = .5; for (int i = 0; i < 5; i++) { s += a * rvn(p); p = p * 2.03 + vec2(1.7, 9.2); a *= .5; } return s; }`;
+float rfbm(vec2 p){ float s = 0., a = .5; for (int i = 0; i < ${RIM_LITE ? 2 : 5}; i++) { s += a * rvn(p); p = p * 2.03 + vec2(1.7, 9.2); a *= .5; } return s; }`;
 const RIM_SD = `uniform sampler2D rimSdf; uniform vec4 rimBox; uniform float rimOn; varying vec3 vRimW;
 float rimSD(vec2 p){ vec2 uv = (p - rimBox.xy) / rimBox.zw; if (uv.x < 0. || uv.y < 0. || uv.x > 1. || uv.y > 1.) return 99.; return texture2D(rimSdf, uv).r * 176. - 16.; }`;
-const Rim = { MC: 2, lite: document.documentElement.classList.contains('touch') || /iPhone|iPad|Android/i.test(navigator.userAgent),
+const Rim = { MC: 2, lite: RIM_LITE,
   rag(x, z) { return .5 + .5 * (Math.sin(x * .071 + z * .033) * .55 + Math.sin(x * .19 - z * .27 + 1.7) * .3 + Math.sin(z * .43 + x * .05 + 4.1) * .15); },
   // ---- the island: where something is drawn to stand on, worn ragged near the edge of the grid
   mask(W) { const c = W._cg, MC = this.MC; const X0 = c.X0, Z0 = c.Z0, X1 = c.X0 + c.nx * c.R, Z1 = c.Z0 + c.nz * c.R; const NX = Math.ceil((X1 - X0) / MC), NZ = Math.ceil((Z1 - Z0) / MC); const M = new Uint8Array(NX * NZ);
     for (let k = 0; k < NZ; k++) for (let i = 0; i < NX; i++) { const x = X0 + (i + .5) * MC, z = Z0 + (k + .5) * MC; let on = false; try { on = Climb.gh(W, x, z) > -100 || (W.inside && W.inside({ x, z }, 0)); } catch (e) {}
-      if (on) { const dB = Math.min(x - X0, X1 - x, z - Z0, Z1 - z); if (dB < 3 + this.rag(x, z) * 6) on = false; } M[k * NX + i] = on ? 1 : 0; }
+      if (on) { const dB = Math.min(x - X0, X1 - x, z - Z0, Z1 - z); if (dB < (this.lite ? 1 : 3 + this.rag(x, z) * 6)) on = false; } M[k * NX + i] = on ? 1 : 0; }
     // drop specks: islands of fewer than 12 cells become void
     const seen = new Uint8Array(NX * NZ), st = []; for (let s = 0; s < M.length; s++) { if (!M[s] || seen[s]) continue; const comp = []; st.push(s); seen[s] = 1;
       while (st.length) { const q = st.pop(); comp.push(q); const i = q % NX, k = (q / NX) | 0; for (const [di, dk] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = i + di, b = k + dk; if (a < 0 || b < 0 || a >= NX || b >= NZ) continue; const r = b * NX + a; if (M[r] && !seen[r]) { seen[r] = 1; st.push(r); } } }
@@ -15842,7 +15844,7 @@ const Rim = { MC: 2, lite: document.documentElement.classList.contains('touch') 
     return segs; },
   build(W) { if (!RIM_WORLDS.has(W.id) || !W._cg || !W._cgAdopted || W._rim) return; const t0 = performance.now();
     const G = this.mask(W); const { SD, tex } = this.sdf(G); W._rim = { ...G, SD, tex, box: new THREE.Vector4(G.X0, G.Z0, G.NX * this.MC, G.NZ * this.MC), t: 0, crumble: [], cd: 2, hist: [], safe: null };
-    try { this.cut(W); } catch (e) { console.warn('rim cut', e); }
+    if (!this.lite) { try { this.cut(W); } catch (e) { console.warn('rim cut', e); } }
     // the physics: past the edge there is nothing under you; the invisible wall and the push-back are gone
     { const H = W.heightAt, self = this; W.heightAt = (x, z) => { const h = H(x, z); if (W._rim && self.sd(W, x, z) > 0) return -600; return h; };
       W.pBlock = (x, z) => !!(W._noGo && W._noGo(x, z)); }
@@ -15875,7 +15877,7 @@ const Rim = { MC: 2, lite: document.documentElement.classList.contains('touch') 
           ${base ? `vec3 c = mix(vec3(.025, .012, .05), vec3(.22, .06, .42), near * .9 + n * .25 * far) + vec3(.5, .15, .8) * pow(n, 3.) * near * 1.2; gl_FragColor = vec4(c, 1.);`
             : `float a = smoothstep(.35, .85, n) * (.25 + near) * ${a.toFixed(3)}; gl_FragColor = vec4(vec3(.55, .2, .95) * a, 1.);`} }` });
         const m = new THREE.Mesh(new THREE.PlaneGeometry(2600, 2600), mat); m.rotation.x = -Math.PI / 2; m.position.set(cx, yB + y, cz); m.frustumCulled = false; m.renderOrder = base ? 0 : 1; m.userData.noClimb = 1; root.add(m); return m; };
-      layer(-40, 1, .012, .006, true); layer(-24, .55, .02, .012, false); layer(-12, .3, .03, .02, false); }
+      layer(-40, 1, .012, .006, true); if (!this.lite) { layer(-24, .55, .02, .012, false); layer(-12, .3, .03, .02, false); } }
     // the horizon curtain
     { const mat = new THREE.ShaderMaterial({ uniforms: { time, yB: { value: yB } }, transparent: true, depthWrite: false, side: THREE.BackSide, fog: false, toneMapped: false,
         vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
