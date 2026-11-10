@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.19.1</small>
+        <small>Rift Hunter field prototype · Build 3.20</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.19.1":"裂隙獵人 實地原型 · Build 3.19.1","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.20":"裂隙獵人 實地原型 · Build 3.20","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -14181,8 +14181,14 @@ const MapView={z:1,cx:0,cy:0,sel:null,ptrs:new Map(),pinch:null,moved:0,hover:nu
     const S=v=>v/k*d;// screen px → map px
     // labels where you have been
     g.textAlign='center';g.textBaseline='middle';
-    for(const l of (M.labels||W.mapLabels||[])){const [px,py]=M.P(l.x,l.z);if(this.fogged(M,px,py))continue;if((l.size||14)<14&&this.z<2)continue;const fs=Math.round(Math.max(11,Math.min(18,(l.size||14))));g.font=`500 ${S(fs)}px "Cormorant Garamond","Noto Serif TC",Georgia,serif`;
-      const t=I18N.t(l.t);g.lineWidth=S(3);g.strokeStyle='rgba(3,3,4,.85)';g.strokeText(t,px,py);g.fillStyle='rgba(244,243,239,.88)';g.fillText(t,px,py);}
+    // labels never sit on each other: bigger names first, each tries its spot then a line above and below, else waits for zoom
+    const placed=[];const fits=(t,px,py,fs,force)=>{const w=g.measureText(t).width,h=S(fs)*1.15,pad=S(5);for(const dy of force?[0]:[0,-h,h]){const r=[px-w/2-pad,py+dy-h/2,px+w/2+pad,py+dy+h/2];if(force||!placed.some(q=>r[0]<q[2]&&r[2]>q[0]&&r[1]<q[3]&&r[3]>q[1])){placed.push(r);return dy;}}return null;};
+    this.placed=placed;
+    const LL=(M.labels||W.mapLabels||[]).slice().sort((a,b)=>(b.size||14)-(a.size||14));
+    for(const t0 of this.towers(W)){const [ax,ay]=[t0.px,t0.py];placed.push([ax-S(9),ay-S(22),ax+S(9),ay+S(8)]);}
+    { const [qx,qy]=M.P(Game.player.pos.x,Game.player.pos.z);placed.push([qx-S(11),qy-S(11),qx+S(11),qy+S(11)]); }
+    for(const l of LL){const [px,py]=M.P(l.x,l.z);if(this.fogged(M,px,py))continue;if((l.size||14)<14&&this.z<2)continue;const fs=Math.round(Math.max(11,Math.min(18,(l.size||14))));g.font=`500 ${S(fs)}px "Cormorant Garamond","Noto Serif TC",Georgia,serif`;
+      const t=I18N.t(l.t);const dy=fits(t,px,py,fs,false);if(dy==null)continue;g.lineWidth=S(3);g.strokeStyle='rgba(3,3,4,.85)';g.strokeText(t,px,py+dy);g.fillStyle='rgba(244,243,239,.88)';g.fillText(t,px,py+dy);}
     // marks: things you could know about
     const always={obj:1,ally:1,boss:1,search:1,danger:1};
     for(const m of MapSys.marks(W)){const [mx,my]=M.P(m.x,m.z);m.px=mx;m.py=my;if(!always[m.type]&&this.fogged(M,mx,my))continue;if(m.type==='obj'){this.diamond(g,mx,my,S(7),'#fff',true);continue;}MapSys.icon(g,m,S(1.25));}
@@ -14191,7 +14197,7 @@ const MapView={z:1,cx:0,cy:0,sel:null,ptrs:new Map(),pinch:null,moved:0,hover:nu
       g.save();g.translate(o.px,o.py);if(o.lit){g.shadowColor='rgba(255,255,255,.9)';g.shadowBlur=12*d;}g.strokeStyle=o.lit?'#fff':'rgba(244,243,239,.45)';g.lineWidth=S(1.4);
       g.beginPath();g.moveTo(0,-S(14));g.lineTo(0,S(6));g.stroke();this.diamond(g,0,-S(14),S(sel||hov?6.5:5),o.lit?'#fff':'rgba(244,243,239,.5)',o.lit);
       if(sel){g.beginPath();g.arc(0,-S(4),S(16),0,Math.PI*2);g.strokeStyle='rgba(255,255,255,.7)';g.lineWidth=S(1);g.stroke();}g.restore();
-      if(sel||hov||this.z>1.6){g.font=`500 ${S(13)}px "Cormorant Garamond","Noto Serif TC",Georgia,serif`;g.lineWidth=S(3);g.strokeStyle='rgba(3,3,4,.9)';const t=I18N.t(o.T.name);g.strokeText(t,o.px,o.py+S(16));g.fillStyle=o.lit?'#fff':'rgba(244,243,239,.6)';g.fillText(t,o.px,o.py+S(16));}
+      if(sel||hov||this.z>1.6){g.font=`500 ${S(13)}px "Cormorant Garamond","Noto Serif TC",Georgia,serif`;const t=I18N.t(o.T.name);const dy=fits(t,o.px,o.py+S(16),13,sel||hov);if(dy!=null){g.lineWidth=S(3);g.strokeStyle='rgba(3,3,4,.9)';g.strokeText(t,o.px,o.py+S(16)+dy);g.fillStyle=o.lit?'#fff':'rgba(244,243,239,.6)';g.fillText(t,o.px,o.py+S(16)+dy);}}
       this.hit.push(o);}
     // you
     const pl=Game.player;const [px,py]=M.P(pl.pos.x,pl.pos.z);g.save();g.translate(px,py);g.rotate(-pl.yaw);g.shadowColor='#fff';g.shadowBlur=14*d;g.fillStyle='#fff';const a=S(10);g.beginPath();g.moveTo(0,-a);g.lineTo(a*.62,a*.72);g.lineTo(0,a*.32);g.lineTo(-a*.62,a*.72);g.closePath();g.fill();g.restore();
@@ -16021,24 +16027,43 @@ Object.assign(ZH_DICT, { 'The Void swallowed you · back where you jumped': '被
      faded to 22 % and could not be read; "Continue / No save yet" was cramped on the title.
      → Region card moves up and shrinks; a soft scrim behind the objective; idle HUD at 50 %; title spacing fixed.
    ===================================================================== */
-const ArtU = { uDet: { value: 1 }, uFloor: { value: .04 }, uCeil: { value: .35 }, uRimC: { value: new THREE.Color(.62, .7, .95) }, uRimK: { value: .7 } };
+const ArtU = { uDet: { value: 1 }, uPat: { value: 0 }, uVeinC: { value: new THREE.Color(0, 0, 0) }, uFloor: { value: .04 }, uCeil: { value: .35 }, uRimC: { value: new THREE.Color(.62, .7, .95) }, uRimK: { value: .7 } };
 const ART_NOISE = `float azh(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
-float azn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(azh(i), azh(i + vec2(1, 0)), f.x), mix(azh(i + vec2(0, 1)), azh(i + vec2(1, 1)), f.x), f.y); }`;
+float azn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(azh(i), azh(i + vec2(1, 0)), f.x), mix(azh(i + vec2(0, 1)), azh(i + vec2(1, 1)), f.x), f.y); }
+float azVein = 0.;
+vec2 azh2(vec2 p){ return vec2(azh(p), azh(p + 17.31)); }
+// cellular: x = distance to the nearest seed, y = distance to the border with the next one (crack / joint width)
+vec2 azvor(vec2 p){ vec2 i = floor(p), f = fract(p); float d1 = 8., d2 = 8.; for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 o = vec2(float(x), float(y)); vec2 r = o + azh2(i + o) * .8 + .1 - f; float d = dot(r, r); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; } return vec2(sqrt(d1), sqrt(d2) - sqrt(d1)); }
+// each world's ground: 1 city paving, 2 street asphalt, 3 arcane flagstones, 4 foundry plate, 5 scorched crust, 6 void lattice
+float azpat(vec2 g, float up, float near){ if (uPat < .5 || up < .01) return 1.; float m = 1.;
+  if (uPat < 1.5) { vec2 c = g / vec2(1.4, .7); c.x += step(1., mod(floor(c.y), 2.)) * .5; vec2 id = floor(c), f = fract(c);
+    float e = min(min(f.x, 1. - f.x) * 1.4, min(f.y, 1. - f.y) * .7); m = mix(.58, 1., smoothstep(.012, .045, e)) * (.9 + .2 * azh(id)); }
+  else if (uPat < 2.5) { vec2 v = azvor(g * .15); float seam = 1. - (1. - smoothstep(0., .03, v.y)) * .5; float pch = .9 + .2 * azh(floor(g * .15 + v.x)); m = seam * pch * (.93 + .14 * azh(floor(g * 14.)) * near); }
+  else if (uPat < 3.5) { vec2 v = azvor(g * .55); float j = smoothstep(.02, .09, v.y); m = mix(.52, 1., j) * (.9 + .2 * azh(floor(g * .55 + v.x * 3.)));
+    azVein = (1. - smoothstep(0., .045, v.y)) * smoothstep(.72, .8, azn(g * .06 + 11.)) * up; }
+  else if (uPat < 4.5) { vec2 c = g / 2.4; vec2 id = floor(c), f = fract(c); vec2 fe = min(f, 1. - f); float e = min(fe.x, fe.y) * 2.4; float seam = smoothstep(.02, .06, e);
+    float rv = min(length(vec2((fract(f.x * 8.) - .5) / 8., fe.y - .055)), length(vec2((fract(f.y * 8.) - .5) / 8., fe.x - .055))); float rivet = smoothstep(.02, .011, rv) * near;
+    float tread = step(.62, azh(id)) * step(0., sin((f.x + f.y) * 70.) * sin((f.x - f.y) * 70.)) * near;
+    m = mix(.42, 1., seam) * (.86 + .22 * azh(id)) * (1. - .1 * tread) * (1. + .45 * rivet); }
+  else if (uPat < 5.5) { vec2 v = azvor(g * .3); float crack = 1. - smoothstep(0., .06, v.y); float hot = smoothstep(.42, .68, azn(g * .045 + 3.));
+    m = (1. - .6 * crack) * (.82 + .3 * azh(floor(g * .3 + v.x * 2.))); azVein = crack * hot * up; }
+  else { vec2 q = g / 3.; float l = min(abs(fract(q.x + q.y * .5) - .5), abs(fract(q.y) - .5)); m = 1. + .16 * (1. - smoothstep(.0, .025, l)) * near; }
+  return mix(1., m, up); }`;
 const Art = {
-  GR: { city: { sat: .68, con: 1.08, exp: 1, fl: .05, ce: .3, rim: [.62, .7, .95] }, modern: { sat: .64, con: 1.12, exp: .88, fl: .075, ce: .17, rim: [.7, .85, 1] }, arcane: { sat: .74, con: 1.07, exp: 1, fl: .04, ce: .35, rim: [.85, .65, 1] },
-    mech: { sat: .74, con: 1.2, exp: .7, fl: .04, ce: .26, rim: [1, .78, .55] }, demon: { sat: .76, con: 1.12, exp: .95, fl: .04, ce: .3, rim: [1, .55, .42] }, void: { sat: .55, con: 1.06, exp: 1, fl: .03, ce: .4, rim: [.92, .92, 1] } },
-  def: { sat: .64, con: 1.06, exp: 1, fl: .04, ce: .35, rim: [.75, .78, .95] },
+  GR: { city: { sat: .68, con: 1.08, exp: 1, fl: .05, ce: .3, pat: 1, vein: [0, 0, 0], rim: [.62, .7, .95] }, modern: { sat: .64, con: 1.12, exp: .88, fl: .075, ce: .17, pat: 2, vein: [0, 0, 0], rim: [.7, .85, 1] }, arcane: { sat: .74, con: 1.07, exp: 1, fl: .04, ce: .35, pat: 3, vein: [.55, .32, 1.2], rim: [.85, .65, 1] },
+    mech: { sat: .74, con: 1.2, exp: .7, fl: .04, ce: .26, pat: 4, vein: [0, 0, 0], rim: [1, .78, .55] }, demon: { sat: .76, con: 1.12, exp: .95, fl: .04, ce: .3, pat: 5, vein: [2.4, .62, .12], rim: [1, .55, .42] }, void: { sat: .55, con: 1.06, exp: 1, fl: .03, ce: .4, pat: 6, vein: [0, 0, 0], rim: [.92, .92, 1] } },
+  def: { sat: .64, con: 1.06, exp: 1, fl: .04, ce: .35, pat: 0, vein: [0, 0, 0], rim: [.75, .78, .95] },
   grade() { if (this.gp !== undefined) return this.gp; const C = window.__AZcomposer; this.gp = C ? C.passes.find(p => p.constructor && p.constructor.name === 'ShaderPass' && p.uniforms && p.uniforms.uSat) || null : null; return this.gp; },
   base: {}, last: {},
   // set a uniform to base * f without stacking on our own change; the game may rewrite the base every frame
   scaled(key, obj, f) { const v = obj.value; if (this.last[key] == null || Math.abs(v - this.last[key]) > 1e-6) this.base[key] = v; const w = this.base[key] * f; obj.value = w; this.last[key] = w; },
   // ---- world-space surface detail on every lit material of a world
-  detail(W) { const done = new Set(); W.group.traverse(o => { if (!o.isMesh || o.userData.noRim || o.userData.noDetail) return; const L = Array.isArray(o.material) ? o.material : [o.material];
+  detail(W) { const done = new Set(); W.group.traverse(o => { if (!o.isMesh || o.isSkinnedMesh || o.userData.noRim || o.userData.noDetail) return; const L = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of L) { if (!m || done.has(m) || m.userData.det || m.isShaderMaterial || m.isMeshBasicMaterial || m.transparent) continue; if (!(m.isMeshStandardMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial || m.isMeshToonMaterial)) continue;
         done.add(m); m.userData.det = 1; const prev = m.onBeforeCompile, pk = m.customProgramCacheKey; const prevKey = pk && pk !== THREE.Material.prototype.customProgramCacheKey ? pk.bind(m) : null; const prevStr = prev ? prev.toString() : '';
-        m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m, sh, r); sh.uniforms.uDet = ArtU.uDet; sh.uniforms.uFloor = ArtU.uFloor; sh.uniforms.uCeil = ArtU.uCeil;
+        m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m, sh, r); sh.uniforms.uDet = ArtU.uDet; sh.uniforms.uFloor = ArtU.uFloor; sh.uniforms.uCeil = ArtU.uCeil; sh.uniforms.uPat = ArtU.uPat; sh.uniforms.uVeinC = ArtU.uVeinC;
           sh.vertexShader = 'varying vec3 vDW; varying vec3 vDN;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n#ifdef USE_INSTANCING\n vDW = (modelMatrix * instanceMatrix * vec4(transformed, 1.)).xyz; vDN = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);\n#else\n vDW = (modelMatrix * vec4(transformed, 1.)).xyz; vDN = normalize(mat3(modelMatrix) * objectNormal);\n#endif');
-          sh.fragmentShader = 'varying vec3 vDW; varying vec3 vDN; uniform float uDet; uniform float uFloor; uniform float uCeil;\n' + ART_NOISE + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+          sh.fragmentShader = 'varying vec3 vDW; varying vec3 vDN; uniform float uDet; uniform float uFloor; uniform float uCeil; uniform float uPat; uniform vec3 uVeinC;\n' + ART_NOISE + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
   { vec3 dn = normalize(vDN); float up = smoothstep(.55, .9, abs(dn.y)); vec2 g = vDW.xz;
     float macro = azn(g * .045) * .6 + azn(g * .13 + 7.) * .4; float fine = azn(g * 1.7 + vDW.y * .3); float grit = azh(floor(g * 9.));
     float streak = azn(vec2((vDW.x + vDW.z) * .9, vDW.y * .07)); float band = azn(vec2((vDW.x - vDW.z) * .05, vDW.y * .5));
@@ -16047,8 +16072,9 @@ const Art = {
     // albedo range per world: near-black asphalt lifts to a readable dark grey (hue kept), floors brighter than the
     // world's ceiling come down, so a lit slab beside a shadowed street no longer reads as white against black
     float al = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722));
-    diffuseColor.rgb *= clamp(uFloor / max(al, 1e-3), 1., 4.) * mix(1., clamp(uCeil / max(al, 1e-3), .45, 1.), up); }`); };
-        m.customProgramCacheKey = () => (prevKey ? prevKey() : prevStr) + '|det2'; m.needsUpdate = true; } }); W._det = 1; },
+    diffuseColor.rgb *= clamp(uFloor / max(al, 1e-3), 1., 4.) * mix(1., clamp(uCeil / max(al, 1e-3), .45, 1.), up);
+    float near = 1. - smoothstep(14., 40., distance(vDW, cameraPosition)); diffuseColor.rgb *= azpat(g, up, near); }`).replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += uVeinC * azVein;'); };
+        m.customProgramCacheKey = () => (prevKey ? prevKey() : prevStr) + '|det3'; m.needsUpdate = true; } }); W._det = 1; },
   // ---- the hunter's rim light
   rim(pl) { if (!pl || !pl.root) return; pl.root.traverse(o => { if (!o.isMesh || o.userData.xr) return; const L = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of L) { if (!m || m.userData.rimL || m.isShaderMaterial || m.isMeshBasicMaterial || m.blending === THREE.AdditiveBlending) continue; if (!(m.isMeshStandardMaterial || m.isMeshPhysicalMaterial || m.isMeshToonMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial)) continue;
@@ -16061,7 +16087,7 @@ const Art = {
     if (!W._det && (W._cgAdopted || !W._cg)) { try { this.detail(W); } catch (e) { console.warn('detail', e); W._det = 1; } }
     this.scanT -= dt; if (this.scanT <= 0) { this.scanT = 2; try { this.rim(pl); } catch (e) { console.warn('rimL', e); } }
     const gp = this.grade(); if (gp) { if (this.gW !== W) { if (this.gW) { try { if (Game.radioQ && Game.radioQ.length) { Game.radioQ.length = 0; if (Game.radioBusy) Game.nextRadio(); } } catch (e) {} } this.gW = W; try { if (W.env) W.env.sat = G.sat; } catch (e) {} gp.uniforms.uSat.value = G.sat; } if (Game.state !== 'photo') gp.uniforms.uCon.value = damp(gp.uniforms.uCon.value, G.con, 3, dt); }
-    try { Readable.expF = G.exp; } catch (e) {} ArtU.uFloor.value = damp(ArtU.uFloor.value, G.fl, 3, dt); ArtU.uCeil.value = damp(ArtU.uCeil.value, G.ce, 3, dt);
+    try { Readable.expF = G.exp; } catch (e) {} ArtU.uFloor.value = damp(ArtU.uFloor.value, G.fl, 3, dt); ArtU.uCeil.value = damp(ArtU.uCeil.value, G.ce, 3, dt); ArtU.uPat.value = G.pat; ArtU.uVeinC.value.setRGB(...G.vein);
     this.rc = this.rc || new THREE.Color(); this.rc.setRGB(...G.rim); ArtU.uRimC.value.lerp(this.rc, Math.min(1, dt * 2)); let night = 0; try { night = Readable.k || 0; } catch (e) {} ArtU.uRimK.value = .55 + .35 * night; } };
 window.__AZart = Art; window.__AZartU = ArtU;
 // the night lift: only under a real night sky, and gentler; each world's exposure factor rides on the same base
@@ -16082,6 +16108,157 @@ try { if (!Cam.distT) Cam.distT = 5.3; } catch (e) {}
 body.vcalm #vhud .vh-gear,body.vcalm #vhud .vh-sk,body.vcalm #vhud .vh-pouch{opacity:.5!important}
 `; document.head.appendChild(st); }
 setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); try { Art.tick(Math.min(.1, rdt || 0)); } catch (e) { console.warn('art', e); } }; }, 0);
+/* =====================================================================
+   BUILD 3.20 · ART DIRECTION, PART TWO
+   · The hunter wears a long vermilion scarf: a knot at the neck and two tails that trail, swing and settle with real
+     cloth inertia. It is the one saturated colour on her, so her silhouette reads in every world, day or night.
+   · Every world gets a counter-colour: a second light opposite the sun in a complementary hue (cool steel blue
+     against the foundry's amber, violet against the demon crust's red, warm gold against arcane violet), and a
+     handful of accent props that carry that colour into the space (coolant vents with steam, void crystals,
+     amber lanterns, drifting gold flecks).
+   · The camera no longer ends up inside rocks and cliffs: the ray from the hunter to the camera is checked against
+     the solid-height grid every frame and the camera stops in front of anything solid.
+   ===================================================================== */
+
+// ---------------------------------------------------------------- the scarf
+const Scarf = {
+  COL: 0xc81e26, EM: 0xff2a1a,
+  tails: null, wrap: null, anchor: new V3(), lastA: null, s: 1, t: 0,
+  mat() { return this.M || (this.M = new THREE.MeshStandardMaterial({ color: this.COL, emissive: this.EM, emissiveIntensity: .3, roughness: .78, metalness: 0, side: THREE.DoubleSide, vertexColors: true })); },
+  rig(pl) { let best = null; pl.root.traverse(o => { if (o.isSkinnedMesh && !o.userData.xr && o.skeleton && !best) { let v = true, p = o; while (p) { if (!p.visible) { v = false; break; } p = p.parent; } if (v) best = o; } });
+    if (!best) return null; const B = best.skeleton.bones; const f = r => B.find(b => r.test(b.name));
+    return { neck: f(/Neck$/), chest: f(/Spine2$/) || f(/Spine1$/), hips: f(/Hips$/), head: f(/Head$/) }; },
+  tail(n, len, w0, w1) { const g = new THREE.BufferGeometry(); const P = new Float32Array(n * 2 * 3), C = new Float32Array(n * 2 * 3), I = [];
+    for (let i = 0; i < n; i++) { const k = i / (n - 1); const sh = .62 + .38 * k; for (let s = 0; s < 2; s++) { const j = (i * 2 + s) * 3; const e = s ? 1 : .86; C[j] = sh * e; C[j + 1] = sh * e; C[j + 2] = sh * e; } if (i < n - 1) { const a = i * 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
+    g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('color', new THREE.BufferAttribute(C, 3)); g.setIndex(I);
+    const m = new THREE.Mesh(g, this.mat()); m.frustumCulled = false; m.castShadow = true; m.renderOrder = 2; scene.add(m);
+    const p = [], q = []; for (let i = 0; i < n; i++) { p.push(new V3()); q.push(new V3()); }
+    return { m, g, n, seg: len / (n - 1), w0, w1, p, q, ph: Math.random() * 9 }; },
+  build() { this.tails = [this.tail(13, 1.05, .15, .1), this.tail(10, .72, .13, .09)];
+    const wg = new THREE.TorusGeometry(.105, .04, 8, 22); wg.scale(1, 1, .8); this.wrap = new THREE.Mesh(wg, this.mat()); this.wrap.castShadow = true; scene.add(this.wrap);
+    const kg = new THREE.SphereGeometry(.055, 10, 8); this.knot = new THREE.Mesh(kg, this.mat()); scene.add(this.knot);
+    window.__AZscarf = this; },
+  reset(A, back) { for (const T of this.tails) for (let i = 0; i < T.n; i++) { T.p[i].copy(A).addScaledVector(back, .05 * i * this.s).y -= T.seg * i * this.s * .95; T.q[i].copy(T.p[i]); } },
+  _a: new V3(), _b: new V3(), _c: new V3(), _d: new V3(), _f: new V3(), _r: new V3(), _u: new V3(0, 1, 0),
+  tick(dt) { const pl = Game.player, W = Game.world; if (!pl || !pl.root || !W) return; if (!this.tails) this.build();
+    const show = pl.root.visible && Game.state !== 'title' && Game.state !== 'select' && !(typeof Cine !== 'undefined' && Cine.on && Cine.hideHunter);
+    for (const T of this.tails) T.m.visible = show; this.wrap.visible = this.knot.visible = show; if (!show) { this.lastA = null; return; }
+    if (!this.R || this.R.src !== pl.root.children.length + ':' + pl.cid) { this.R = this.rig(pl) || {}; this.R.src = pl.root.children.length + ':' + pl.cid; }
+    const R = this.R; if (!R.neck || !R.hips) { for (const T of this.tails) T.m.visible = false; this.wrap.visible = this.knot.visible = false; return; }
+    pl.root.updateMatrixWorld(true); const N = R.neck.getWorldPosition(this._a), H = R.hips.getWorldPosition(this._b), C = (R.chest || R.neck).getWorldPosition(this._c);
+    this.s = clamp(N.distanceTo(H) / .56, .7, 1.6); const s = this.s;
+    const f = fwd(pl.yaw, this._f), back = this._d.copy(f).negate(), right = this._r.set(f.z, 0, -f.x);
+    // the knot sits at the back of the neck, a little low
+    const A = this.anchor.copy(N).addScaledVector(back, .085 * s).addScaledVector(this._u, -.05 * s);
+    if (!this.lastA || this.lastA.distanceTo(A) > 2.5) { this.lastA = (this.lastA || new V3()).copy(A); this.reset(A, back); }
+    this.lastA.copy(A);
+    this.wrap.position.copy(N).addScaledVector(this._u, -.03 * s).addScaledVector(f, -.005 * s);     this.wrap.quaternion.setFromEuler(new THREE.Euler(Math.PI / 2 - .25, pl.yaw, 0, 'YXZ')); this.wrap.scale.setScalar(s);
+    this.knot.position.copy(A); this.knot.scale.setScalar(s);
+    // verlet, two substeps
+    this.t += dt; const sub = 2, h = Math.min(dt, 1 / 30) / sub; const spd = pl.vel ? Math.hypot(pl.vel.x, pl.vel.z) : 0;
+    const gy = (pl.gy || 0) + .03;
+    for (let it = 0; it < sub; it++) { let ti = 0;
+      for (const T of this.tails) { const side = ti ? -1 : 1; ti++;
+        const a0 = this._a.copy(A).addScaledVector(right, side * .045 * s); T.p[0].copy(a0); T.q[0].copy(a0);
+        for (let i = 1; i < T.n; i++) { const p = T.p[i], q = T.q[i]; const vx = (p.x - q.x) * .962, vy = (p.y - q.y) * .962, vz = (p.z - q.z) * .962; q.copy(p);
+          const k = i / (T.n - 1); const fl = Math.sin(this.t * 7.3 + T.ph + i * .7) * (0.5 + spd * .25) * k;
+          p.x += vx + (right.x * fl * .9 + back.x * (.6 + spd * .5) * k) * h * h * 9;
+          p.y += vy - 5.2 * h * h + (spd > 1 ? Math.min(spd, 7) * .22 * k * h * h * 9 : 0);
+          p.z += vz + (right.z * fl * .9 + back.z * (.6 + spd * .5) * k) * h * h * 9; }
+        for (let r = 0; r < 4; r++) { for (let i = 1; i < T.n; i++) { const a = T.p[i - 1], b = T.p[i]; const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z; const d = Math.hypot(dx, dy, dz) || 1e-6; const L = T.seg * s; const e = (d - L) / d;
+            if (i === 1) { b.x -= dx * e; b.y -= dy * e; b.z -= dz * e; } else { a.x += dx * e * .5; a.y += dy * e * .5; a.z += dz * e * .5; b.x -= dx * e * .5; b.y -= dy * e * .5; b.z -= dz * e * .5; } }
+          // her back: a capsule from hips to neck, and nothing passes in front of her spine
+          for (let i = 1; i < T.n; i++) { const p = T.p[i]; const ax = H.x, ay = H.y + .05 * s, az = H.z; const bx = N.x - ax, by = N.y - ay, bz = N.z - az; const bl = bx * bx + by * by + bz * bz;
+            let u = ((p.x - ax) * bx + (p.y - ay) * by + (p.z - az) * bz) / bl; u = clamp(u, 0, 1); const cx = ax + bx * u, cy = ay + by * u, cz = az + bz * u;
+            let ox = p.x - cx, oy = p.y - cy, oz = p.z - cz; const rr = (.2 - .05 * u) * s; const od = Math.hypot(ox, oy, oz);
+            const fb = ox * f.x + oz * f.z; if (fb > -rr * .55 && p.y > H.y - .55 * s && p.y < N.y + .1 * s) { const push = fb + rr * .55; p.x -= f.x * push; p.z -= f.z * push; ox = p.x - cx; oz = p.z - cz; }
+            if (od < rr && od > 1e-5) { const m = rr / od; p.x = cx + ox * m; p.y = cy + oy * m; p.z = cz + oz * m; }
+            if (p.y < gy) p.y = gy; } } } }
+    // the strips: width along her shoulders, tapering to the tip
+    for (const T of this.tails) { const P = T.g.attributes.position.array;
+      for (let i = 0; i < T.n; i++) { const a = T.p[Math.max(0, i - 1)], b = T.p[Math.min(T.n - 1, i + 1)]; const sx = b.x - a.x, sy = b.y - a.y, sz = b.z - a.z; const sl = Math.hypot(sx, sy, sz) || 1;
+        let wx = right.x, wy = 0, wz = right.z; const dd = (wx * sx + wz * sz) / sl; wx -= sx / sl * dd; wy -= sy / sl * dd; wz -= sz / sl * dd; const wl = Math.hypot(wx, wy, wz) || 1;
+        const k = i / (T.n - 1); const w = (T.w0 + (T.w1 - T.w0) * k) * s * .5 * (1 + .12 * Math.sin(this.t * 5 + i + T.ph)); const p = T.p[i]; const j = i * 6;
+        P[j] = p.x - wx / wl * w; P[j + 1] = p.y - wy / wl * w; P[j + 2] = p.z - wz / wl * w; P[j + 3] = p.x + wx / wl * w; P[j + 4] = p.y + wy / wl * w; P[j + 5] = p.z + wz / wl * w; }
+      T.g.attributes.position.needsUpdate = true; T.g.computeVertexNormals(); T.g.computeBoundingSphere(); }
+    // the scarf glows a little more at night so it still reads
+    let night = 0; try { night = Readable.k || 0; } catch (e) {} this.M.emissiveIntensity = .22 + .3 * night; } };
+window.__AZscarfS = Scarf;
+
+// ---------------------------------------------------------------- counter-colour and accents
+const Accent = {
+  CFG: {
+    mech: { c: 0x6fa8ff, i: .75, kind: 'vent', glow: [.25, .75, 1.25], n: 18 },
+    demon: { c: 0x8f6bff, i: .6, kind: 'crystal', glow: [.62, .3, 1.35], n: 18 },
+    arcane: { c: 0xffc27a, i: .45, kind: 'lantern', glow: [1.35, .85, .32], n: 16 },
+    void: { c: 0xffe2a8, i: .32, kind: 'fleck', glow: [1.3, 1, .45], n: 14 },
+    modern: { c: 0xff5fa8, i: .22, kind: null },
+    city: { c: 0x7fb4ff, i: .0, kind: null } },
+  light() { if (this.L) return this.L; const L = this.L = new THREE.DirectionalLight(0xffffff, 0); L.castShadow = false; scene.add(L); scene.add(L.target); return L; },
+  glowTex() { if (this.gt) return this.gt; const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.35, 'rgba(255,255,255,.35)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); this.gt = new THREE.CanvasTexture(c); return this.gt; },
+  spots(W, n) { const c = W._cg; if (!c || !Climb) return []; let seed = 1234 + W.id.length * 77; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647; const out = []; const sp = W.spawn || { x: 0, z: 0 };
+    // gather where the hunter actually goes: spawn, survey sites, interactables, hound posts, rift anchors
+    const AN = [sp]; for (const L of [W.survey, W.interactDefs, W.hounds]) for (const o of L || []) { const x = o.x ?? (o.pos && o.pos.x) ?? (o.at && o.at[0]) ?? (o.post && o.post[0]), z = o.z ?? (o.pos && o.pos.z) ?? (o.at && o.at[1]) ?? (o.post && o.post[1]); if (Number.isFinite(x) && Number.isFinite(z)) AN.push({ x, z }); }
+    try { for (const T of TOWERS) if (T.world === W.id) { const a = T.at(W); AN.push({ x: a.x, z: a.z }); } } catch (e) {}
+    for (let t = 0; t < 1400 && out.length < n; t++) { const A0 = AN[Math.floor(rnd() * AN.length)]; const an = rnd() * 6.283, rr = 7 + rnd() * 18; const x = A0.x + Math.cos(an) * rr, z = A0.z + Math.sin(an) * rr; const h = Climb.gh(W, x, z); if (h < -100) continue;
+      let ok = true; for (const [dx, dz] of [[1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]]) { const h2 = Climb.gh(W, x + dx, z + dz); if (!(Math.abs(h2 - h) < .25)) { ok = false; break; } } if (!ok) continue;
+      try { if (W._rim && typeof Rim !== 'undefined' && Rim.sd(W, x, z) > -5) continue; } catch (e) {} if (Math.hypot(x - sp.x, z - sp.z) < 7) continue;
+      try { const hb = W.heightAt(x, z); if (Math.abs(hb - h) > .4) continue; } catch (e) {}
+      if ((W.colliders || []).some(q => Math.hypot(q.x - x, q.z - z) < (q.r || 1) + 1.6)) continue; if (out.some(o => Math.hypot(o.x - x, o.z - z) < 11)) continue; out.push({ x, z, y: h, r: rnd() }); }
+    return out; },
+  mk: {
+    vent(A, p, G) { const g = new THREE.Group(); const steel = new THREE.MeshStandardMaterial({ color: 0x2c3036, roughness: .55, metalness: .6 });
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(.55, .72, .32, 6), steel); base.position.y = .16; base.castShadow = true; g.add(base);
+      const grate = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .04, 6), new THREE.MeshStandardMaterial({ color: 0x121418, roughness: .9 })); grate.position.y = .33; g.add(grate);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(.47, .03, 6, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(...G).multiplyScalar(1.1), toneMapped: true })); ring.rotation.x = Math.PI / 2; ring.position.y = .33; g.add(ring);
+      for (let i = 0; i < 7; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: A.glowTex(), color: new THREE.Color(.55, .8, 1), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); s.userData.ph = i / 7; g.add(s); (g.userData.steam = g.userData.steam || []).push(s); }
+      return g; },
+    crystal(A, p, G) { const g = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color: 0x1a1024, roughness: .25, metalness: .2, emissive: new THREE.Color(G[0], G[1], G[2]), emissiveIntensity: .55, flatShading: true });
+      const k = 3 + Math.floor(p.r * 3); for (let i = 0; i < k; i++) { const h = .7 + Math.random() * 1.5; const c = new THREE.Mesh(new THREE.ConeGeometry(.16 + Math.random() * .14, h, 5), m); const a = i / k * Math.PI * 2 + p.r; c.position.set(Math.cos(a) * .3 * (i ? 1 : 0), h / 2 - .1, Math.sin(a) * .3 * (i ? 1 : 0)); c.rotation.set(Math.cos(a) * .35 * (i ? 1 : 0), 0, Math.sin(a) * .35 * (i ? 1 : 0)); c.castShadow = true; g.add(c); }
+      return g; },
+    lantern(A, p, G) { const g = new THREE.Group(); const st = new THREE.MeshStandardMaterial({ color: 0x3a3346, roughness: .85 });
+      const post = new THREE.Mesh(new THREE.BoxGeometry(.26, 1.25, .26), st); post.position.y = .62; post.castShadow = true; g.add(post); const cap = new THREE.Mesh(new THREE.BoxGeometry(.44, .1, .44), st); cap.position.y = 1.28; g.add(cap);
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(.13, 14, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(...G) })); orb.position.y = 1.62; g.add(orb); g.userData.orb = orb;
+      const hs = new THREE.Sprite(new THREE.SpriteMaterial({ map: A.glowTex(), color: new THREE.Color(G[0] * .5, G[1] * .5, G[2] * .5), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); hs.scale.setScalar(1.3); hs.position.y = 1.62; g.add(hs); g.userData.halo = hs;
+      return g; },
+    fleck(A, p, G) { const g = new THREE.Group(); const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(...G) }); for (let i = 0; i < 4; i++) { const o = new THREE.Mesh(new THREE.OctahedronGeometry(.07 + Math.random() * .08), m); o.position.set((Math.random() - .5) * 1.4, 1 + Math.random() * 1.6, (Math.random() - .5) * 1.4); o.userData.y0 = o.position.y; g.add(o); (g.userData.fl = g.userData.fl || []).push(o); } return g; } },
+  build(W) { const C = this.CFG[W.id]; W._acc = []; if (!C || !C.kind) return; const lite = !!window.__AZlite; const S = this.spots(W, lite ? Math.ceil(C.n / 2) : C.n);
+    for (const p of S) { const g = this.mk[C.kind](this, p, C.glow); g.position.set(p.x, p.y, p.z); g.rotation.y = p.r * 6.28; W.group.add(g);
+      // a pool of the counter-colour on the ground around it
+      const pool = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this.glowTex(), color: new THREE.Color(C.glow[0] * .32, C.glow[1] * .32, C.glow[2] * .32), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: true }));
+      pool.rotation.x = -Math.PI / 2; pool.position.set(p.x, p.y + .04, p.z); pool.scale.setScalar(C.kind === 'crystal' ? 5 : 4); pool.renderOrder = 1; pool.userData.noDetail = 1; W.group.add(pool);
+      g.traverse(o => { o.userData.noDetail = 1; }); if (C.kind !== 'fleck') W.colliders.push({ x: p.x, z: p.z, r: .62, name: 'accent' }); W._acc.push({ g, p, pool }); }
+    W._accBuilt = 1; },
+  tick(dt) { const W = Game.world, pl = Game.player; if (!W || !pl) return; const C = this.CFG[W.id] || { c: 0xffffff, i: 0 };
+    if (!W._accBuilt && W._cgAdopted) { try { this.build(W); } catch (e) { console.warn('accent', e); W._accBuilt = 1; } }
+    // the counter light: opposite the sun, low, in the world's complementary hue
+    const L = this.light(); L.color.setHex(C.c); L.intensity = damp(L.intensity, C.i, 3, dt); const K = W.key || W.moon;
+    let kx = .5, kz = .5; if (K) { const dx = K.position.x - K.target.position.x, dz = K.position.z - K.target.position.z; const dl = Math.hypot(dx, dz) || 1; kx = dx / dl; kz = dz / dl; }
+    const Y = (pl.gy || 0) + (pl.py || 0); L.position.set(pl.pos.x - kx * 10, Y + 5, pl.pos.z - kz * 10); L.target.position.set(pl.pos.x, Y, pl.pos.z);
+    // props: steam, bobbing orbs, drifting flecks; only the ones near the hunter animate
+    const t = Game.time || performance.now() / 1000;
+    for (const a of W._acc || []) { if (Math.abs(a.p.x - pl.pos.x) > 60 || Math.abs(a.p.z - pl.pos.z) > 60) continue; const u = a.g.userData;
+      if (u.steam) for (const s of u.steam) { const k = (t * .35 + s.userData.ph) % 1; s.position.set(Math.sin(k * 5 + s.userData.ph * 9) * .25 * k, .4 + k * 3.2, Math.cos(k * 4 + s.userData.ph * 7) * .25 * k); s.scale.setScalar(.5 + k * 2.2); s.material.opacity = Math.sin(k * Math.PI) * .2; }
+      if (u.orb) { const b = Math.sin(t * 1.6 + a.p.r * 9) * .06; u.orb.position.y = 1.62 + b; u.halo.position.y = 1.62 + b; u.halo.material.opacity = .75 + .25 * Math.sin(t * 3.1 + a.p.r * 5); }
+      if (u.fl) for (const o of u.fl) { o.rotation.y += dt * 1.3; o.rotation.x += dt * .7; o.position.y = o.userData.y0 + Math.sin(t * .9 + o.userData.y0 * 3) * .18; }
+      if (a.pool) a.pool.material.opacity = .85 + .15 * Math.sin(t * 2.3 + a.p.r * 7); } } };
+window.__AZaccent = Accent;
+
+// ---------------------------------------------------------------- the camera never ends inside rock
+const CamGuard = { d: null, _h: new V3(), _v: new V3(), _p: new V3(),
+  update(rdt) { const W = Game.world, pl = Game.player; if (!W || !pl || !W._cg || Game.state !== 'playing' || (typeof Cine !== 'undefined' && Cine.on)) { this.d = null; return; }
+    const head = this._h.set(pl.pos.x, (pl.gy || 0) + 1.45 + (pl.py || 0), pl.pos.z); const v = this._v.copy(camera.position).sub(head); const len = v.length(); if (len < 1) return; v.divideScalar(len);
+    let hit = null; for (let t = .7; t <= len + .25; t += .25) { const p = this._p.copy(head).addScaledVector(v, Math.min(t, len)); const h = Climb.gh(W, p.x, p.z); if (h < -100) continue;
+      // solid where the grid's top is above the ray, unless it is far above (a bridge or a roof overhead, not a rock face)
+      if (h > p.y - .22 && h - p.y < 4.5) { hit = t; break; } }
+    const want = hit == null ? null : Math.max(1.05, hit - .45);
+    if (want != null) this.d = this.d == null ? Math.min(len, want) : (want < this.d ? damp(this.d, want, 26, rdt) : damp(this.d, want, 6, rdt));
+    else if (this.d != null) { this.d = damp(this.d, len + 1, 5, rdt); if (this.d >= len) this.d = null; }
+    if (this.d != null && this.d < len) camera.position.copy(head).addScaledVector(v, this.d); } };
+window.__AZcamg = CamGuard;
+
+setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); const d = Math.min(.1, rdt || 0); try { Scarf.tick(d); } catch (e) { console.warn('scarf', e); } try { Accent.tick(d); } catch (e) { console.warn('accent', e); } };
+  const cu = Cam.update.bind(Cam); Cam.update = function (rdt, dt) { cu(rdt, dt); try { CamGuard.update(Math.min(.1, rdt || 0)); } catch (e) {} }; }, 0);
 
 /* =====================================================================
    13. GAME — state, loop, flow
