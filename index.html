@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.19</small>
+        <small>Rift Hunter field prototype · Build 3.19.1</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.19":"裂隙獵人 實地原型 · Build 3.19","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.19.1":"裂隙獵人 實地原型 · Build 3.19.1","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -15773,10 +15773,15 @@ const Readable = { base: { exp: null, hemi: null }, last: { exp: null, hemi: nul
       else { s = new THREE.Mesh(o.geometry, M); o.add(s); }
       s.userData.xr = 1; s.renderOrder = 30; s.frustumCulled = false; s.castShadow = s.receiveShadow = false; this.twins.push(s); } },
   twins: [], scanT: 0,
+  // before the game's frame: take our lift off again, so the game damps, lerps or reads its own values, not ours
+  pre() { try { const W = Game.world; if (this.last.exp != null && Math.abs(renderer.toneMappingExposure - this.last.exp) < 1e-6 && this.base.exp != null) renderer.toneMappingExposure = this.base.exp;
+      if (W && W.hemi && this.hW === W && this.last.hemi != null && Math.abs(W.hemi.intensity - this.last.hemi) < 1e-6 && this.base.hemi != null) W.hemi.intensity = this.base.hemi; } catch (e) {} },
   tick(dt) { const W = Game.world, pl = Game.player; if (!W || !pl) return; const n = this.night(W); this.k = damp(this.k, Game.state === 'playing' || Game.state === 'paused' ? n : 0, 2, dt);
     // exposure and sky light: lift whatever the sky clock set this frame (and do not stack on our own lift)
-    try { const e = renderer.toneMappingExposure; if (this.last.exp == null || Math.abs(e - this.last.exp) > 1e-6) this.base.exp = e; const want = this.base.exp * (1 + .24 * this.k); renderer.toneMappingExposure = want; this.last.exp = want;
-      if (W.hemi) { if (this.hW !== W) { this.hW = W; this.last.hemi = null; } const h = W.hemi.intensity; if (this.last.hemi == null || Math.abs(h - this.last.hemi) > 1e-6) this.base.hemi = h; const wh = this.base.hemi * (1 + .7 * this.k) + .25 * this.k; W.hemi.intensity = wh; this.last.hemi = wh; } } catch (e) {}
+    // pre() put the unlifted values back before the game ran, so whatever is there now is the game's own value: never
+    // read our lift back as a base (a world that damps its sky light toward a target did, and the light ran away to white)
+    try { const e = renderer.toneMappingExposure; this.base.exp = Math.min(e, 4); const want = this.base.exp * (1 + .24 * this.k); renderer.toneMappingExposure = want; this.last.exp = want;
+      if (W.hemi) { if (this.hW !== W) { this.hW = W; this.last.hemi = null; } const h = Math.min(W.hemi.intensity, 12); this.base.hemi = h; const wh = h * (1 + .7 * this.k) + .25 * this.k; W.hemi.intensity = wh; this.last.hemi = wh; } } catch (e) {}
     // the travelling light: on the hunter, a little toward the camera; a wide faint fill above
     const Y0 = (pl.gy || 0) + (pl.py || 0); const L = this.light(); const Y = (pl.gy || 0) + (pl.py || 0); const cx = camera.position.x - pl.pos.x, cz = camera.position.z - pl.pos.z, cl = Math.hypot(cx, cz) || 1;
     L.position.set(pl.pos.x + cx / cl * 8, Y + 9, pl.pos.z + cz / cl * 8); L.target.position.set(pl.pos.x, Y + 1, pl.pos.z); L.intensity = .85 * this.k;
@@ -15787,7 +15792,7 @@ const Readable = { base: { exp: null, hemi: null }, last: { exp: null, hemi: nul
     const on = (Game.state === 'playing' || Game.state === 'paused') && !(typeof Cine !== 'undefined' && Cine.on) && pl.root.visible;
     for (const s of this.twins) { const src = s.userData.src; if (src) { s.visible = on && src.visible; s.position.copy(src.position); s.quaternion.copy(src.quaternion); s.scale.copy(src.scale); } else s.visible = on; } } };
 window.__AZread = Readable;
-setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); try { Readable.tick(Math.min(.1, rdt || 0)); } catch (e) { console.warn('read', e); } }; }, 0);
+setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { Readable.pre(); tk(rdt, now); try { Readable.tick(Math.min(.1, rdt || 0)); } catch (e) { console.warn('read', e); } }; }, 0);
 
 // a guard ahead of the bloom: any pixel that came out of a shader as not-a-number or infinite is zeroed and the rest are
 // capped, so one bad fragment can never spread through the bloom's blur as a black block across the screen
@@ -16051,7 +16056,7 @@ const Art = {
   tick(dt) { const W = Game.world, pl = Game.player; if (!W) return; const G = this.GR[W.id] || this.def;
     if (!W._det && (W._cgAdopted || !W._cg)) { try { this.detail(W); } catch (e) { console.warn('detail', e); W._det = 1; } }
     this.scanT -= dt; if (this.scanT <= 0) { this.scanT = 2; try { this.rim(pl); } catch (e) { console.warn('rimL', e); } }
-    const gp = this.grade(); if (gp) { if (this.gW !== W) { this.gW = W; try { if (W.env) W.env.sat = G.sat; } catch (e) {} gp.uniforms.uSat.value = G.sat; } if (Game.state !== 'photo') gp.uniforms.uCon.value = damp(gp.uniforms.uCon.value, G.con, 3, dt); }
+    const gp = this.grade(); if (gp) { if (this.gW !== W) { if (this.gW) { try { if (Game.radioQ && Game.radioQ.length) { Game.radioQ.length = 0; if (Game.radioBusy) Game.nextRadio(); } } catch (e) {} } this.gW = W; try { if (W.env) W.env.sat = G.sat; } catch (e) {} gp.uniforms.uSat.value = G.sat; } if (Game.state !== 'photo') gp.uniforms.uCon.value = damp(gp.uniforms.uCon.value, G.con, 3, dt); }
     try { Readable.expF = G.exp; } catch (e) {}
     this.rc = this.rc || new THREE.Color(); this.rc.setRGB(...G.rim); ArtU.uRimC.value.lerp(this.rc, Math.min(1, dt * 2)); let night = 0; try { night = Readable.k || 0; } catch (e) {} ArtU.uRimK.value = .55 + .35 * night; } };
 window.__AZart = Art;
@@ -16068,6 +16073,8 @@ try { if (!Cam.distT) Cam.distT = 5.3; } catch (e) {}
 #regionCard span{font-size:11px!important;letter-spacing:.34em!important}
 #hud .obj{isolation:isolate}
 #hud .obj::before{content:'';position:absolute;inset:-18px -60px -18px -70px;background:radial-gradient(ellipse at 35% 50%,rgba(4,5,8,.5),rgba(4,5,8,0) 72%);z-index:-1;pointer-events:none}
+#btnContinue{gap:6px!important}
+#btnContinue small{font-size:10.5px!important;letter-spacing:.14em!important;opacity:.85}
 body.vcalm #vhud .vh-gear,body.vcalm #vhud .vh-sk,body.vcalm #vhud .vh-pouch{opacity:.5!important}
 `; document.head.appendChild(st); }
 setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); try { Art.tick(Math.min(.1, rdt || 0)); } catch (e) { console.warn('art', e); } }; }, 0);
