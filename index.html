@@ -16250,14 +16250,14 @@ const CamGuard = { d: null, _h: new V3(), _v: new V3(), _p: new V3(), ray: new T
   // everything solid in the world: opaque lit meshes (merged batches included), never the hunter, monsters, decals or glow
   gather(W) { const L = []; W.group.updateMatrixWorld(true); W.group.traverse(o => { if (!o.isMesh || o.isSkinnedMesh || o.isPoints || o.isSprite || o.userData.xr || !o.visible) return; let p = o; while (p) { if (!p.visible) return; p = p.parent; }
       const m = Array.isArray(o.material) ? o.material[0] : o.material; if (!m || m.transparent || m.blending === THREE.AdditiveBlending || m.isShaderMaterial || m.depthWrite === false) return;
-      if (!o.geometry || !o.geometry.attributes.position) return; if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); const r = o.geometry.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z); if (r < .45) return; if (o.userData.camThin == null) { const b = new THREE.Box3().setFromObject(o), z = b.getSize(new V3()); o.userData.camThin = Math.min(z.x, z.z) < .9 && z.y > 1.2 ? 1 : 0; } L.push(o); }); return L; },
+      if (!o.geometry || !o.geometry.attributes.position) return; if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); const r = o.geometry.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z); if (r < .45) return; if (o.userData.camThin == null) { const b = new THREE.Box3().setFromObject(o), z = b.getSize(new V3()); o.userData.camThin = Math.max(z.x, z.z) < 1.2 ? 1 : 0; } L.push(o); }); return L; },
   update(rdt) { const W = Game.world, pl = Game.player; if (!W || !pl || Game.state !== 'playing' || (typeof Cine !== 'undefined' && Cine.on)) { this.d = null; return; }
     if (this.W !== W) { this.W = W; this.list = null; this.d = null; this.hitT = null; }
     if (!this.list && (W._cgAdopted || !W._cg)) { try { this.list = this.gather(W); } catch (e) { this.list = []; } }
     this.scanT -= rdt; if (this.scanT <= 0 && this.list) { this.scanT = 6; try { this.list = this.gather(W); } catch (e) {} }
     const head = this._h.set(pl.pos.x, (pl.gy || 0) + 1.45 + (pl.py || 0), pl.pos.z); const v = this._v.copy(camera.position).sub(head); const len = v.length(); if (len < 1) return; v.divideScalar(len);
     // the real geometry between her head and the camera, 30 times a second
-    this.t -= rdt; if (this.t <= 0 && this.list) { this.t = 1 / 30; const R = this.ray; R.camera = camera; R.near = .35; R.far = len + .3; R.set(head, v); R.layers.enableAll();
+    this.t -= rdt; if (this.t <= 0 && this.list) { this.t = window.__AZlite ? 1 / 15 : 1 / 30; const R = this.ray; R.camera = camera; R.near = .35; R.far = len + .3; R.set(head, v); R.layers.enableAll();
       let hit = null; try { const H = R.intersectObjects(this.list, false); for (const h of H) { const o = h.object; if (o.userData.camThin || (typeof CamOcc !== 'undefined' && CamOcc.faded.has(o))) continue; if (h.distance > .35) { hit = h.distance; break; } } } catch (e) {}
       // and the solid-height grid for rock the meshes do not cover: only where the ray is inside a solid chunk
       if (W._cg) for (let t = .7; t <= len; t += .3) { if (hit != null && t >= hit) break; const p = this._p.copy(head).addScaledVector(v, t); const h = Climb.gh(W, p.x, p.z); if (h < -100) continue; if (h > p.y - .2 && h - p.y < 1.4) { hit = t; break; } }
