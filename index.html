@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.18.3</small>
+        <small>Rift Hunter field prototype · Build 3.18.4</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.18.3":"裂隙獵人 實地原型 · Build 3.18.3","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.18.4":"裂隙獵人 實地原型 · Build 3.18.4","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -15355,7 +15355,7 @@ const SK_VS = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projection
 const SK_ARC = SK_NOISE + `uniform float uHead, uFade, uSeed, uGain; uniform vec3 cCore, cMain, cRim; varying vec2 vUv;
 void main(){ float a = vUv.x, r = vUv.y; if (a > uHead) discard;
   float tail = smoothstep(uHead - .9, uHead, a) * (.35 + .65 * smoothstep(uHead - .25, uHead, a));
-  float edge = smoothstep(0., .35, r) * (1. - smoothstep(.93, 1., r)); float core = exp(-pow((r - .84) * 10., 2.));
+  float edge = smoothstep(0., .35, r) * (1. - smoothstep(.93, 1., r)); float rc = (r - .84) * 10.; float core = exp(-rc * rc);
   float n = vn(vec2(a * 22. + uSeed, r * 5.)), n2 = vn(vec2(a * 60. - uSeed, r * 14.)); float dis = smoothstep(uFade - .12, uFade + .05, n * .75 + n2 * .25 + r * .2);
   vec3 col = mix(cRim, cMain, smoothstep(.15, .7, r)); col = mix(col, cCore, core);
   gl_FragColor = vec4(col * edge * tail * (.3 + .7 * core + .35 * n2) * dis * uGain, 1.); }`;
@@ -15364,7 +15364,7 @@ void main(){ vec2 p = vUv * 2. - 1.; float hx = exp(-abs(p.y) * 46.) * exp(-abs(
   float core = exp(-dot(p, p) * 40.), halo = exp(-dot(p, p) * 6.) * .25; vec3 col = c * (hx + vy + halo) * .8 + vec3(1.) * core * .9 + c * core * .6; gl_FragColor = vec4(col * uA * .55, 1.); }`;
 const SK_SCORCH = SK_NOISE + `uniform float uAge, uSeed; uniform vec3 cHot, cCool; varying vec2 vUv;
 void main(){ float x = vUv.x, y = abs(vUv.y - .5) * 2.; float n = vn(vec2(x * 30. + uSeed, vUv.y * 3.)), e = vn(vec2(x * 90. - uSeed, vUv.y * 9. + uAge * 2.));
-  float w = .35 + .4 * n; float core = exp(-pow(y / max(.05, w * (1. - uAge * .6)), 2.) * 3.); float ends = smoothstep(0., .06, x) * smoothstep(1., .9, x); float heat = clamp(1. - uAge * 1.25, 0., 1.);
+  float w = .35 + .4 * n; float core = exp(-pow(y / max(.05, w * (1. - uAge * .6)), 2.) * 3.); float ends = smoothstep(0., .06, x) * (1. - smoothstep(.9, 1., x)); float heat = clamp(1. - uAge * 1.25, 0., 1.);
   vec3 col = mix(cCool, cHot, heat * heat) * (core * (.5 + .8 * heat) + smoothstep(.72, .95, e) * core * 1.4); gl_FragColor = vec4(col * ends * (1. - smoothstep(.7, 1., uAge)), 1.); }`;
 const skGround = (x, z) => { const W = Game.world; if (!W) return 0; try { return W._cg ? Math.max(Climb.gh(W, x, z), -50) : (W.heightAt ? W.heightAt(x, z) : 0); } catch (e) { return 0; } };
 const SKFX = { arcs: [], flares: [], scorch: [], live: [], ready: false, dark: 0, flashA: 0,
@@ -15488,7 +15488,7 @@ const Chrono = { cd: 0, max: 22, R: 8.5, DUR: 3.6, on: null,
     const domeM = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false, uniforms: { t: { value: 0 }, op: { value: 1 }, ca: { value: new THREE.Color(...gold) }, cb: { value: new THREE.Color(...cyan) } },
       vertexShader: `varying vec3 vN; varying vec3 vV; varying vec2 vU; void main(){ vU = uv; vec4 w = modelMatrix * vec4(position,1.); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - w.xyz); gl_Position = projectionMatrix * viewMatrix * w; }`,
       fragmentShader: `uniform float t, op; uniform vec3 ca, cb; varying vec3 vN; varying vec3 vV; varying vec2 vU; void main(){ float f = pow(1. - abs(dot(vN, vV)), 2.2); float lat = smoothstep(.93, 1., sin((vU.y * 18. + t * 1.4) * 3.1416)) * .5; float lon = smoothstep(.97, 1., sin(vU.x * 3.1416 * 24.)) * .25 * (1. - vU.y);
-        vec3 col = mix(cb * .7, ca, smoothstep(0., .8, vU.y)) * (f * .26 + lat * .08 + lon * .05) * smoothstep(1., .55, vU.y); gl_FragColor = vec4(col * op, 1.); }` });
+        vec3 col = mix(cb * .7, ca, smoothstep(0., .8, vU.y)) * (f * .26 + lat * .08 + lon * .05) * (1. - smoothstep(.55, 1., vU.y)); gl_FragColor = vec4(col * op, 1.); }` });
     const dome = new THREE.Mesh(new THREE.SphereGeometry(R, 64, 24, 0, Math.PI * 2, 0, Math.PI / 2), domeM); dome.renderOrder = 5; g.add(dome);
     // the dust that stops in the air
     const N = 140, pa = new Float32Array(N * 3), seed = []; for (let i = 0; i < N; i++) { const r = Math.sqrt(Math.random()) * R * .92, a = rand(0, 6.283), y = rand(.2, R * .6) * (1 - r / R * .6); pa.set([Math.sin(a) * r, y, Math.cos(a) * r], i * 3); seed.push([Math.sin(a) * r, y, Math.cos(a) * r]); }
@@ -15632,9 +15632,9 @@ const Edge2 = { build(W) { const c = W._cg; if (!c || W._edge2) return; const X0
     const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false, toneMapped: false, uniforms: { t: { value: 0 }, uY: { value: 0 }, uP: { value: new THREE.Vector3() } },
       vertexShader: `varying vec3 vW; varying vec2 vU; void main(){ vU = uv; vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
       fragmentShader: SK_NOISE + `uniform float t, uY; uniform vec3 uP; varying vec3 vW; varying vec2 vU;
-        void main(){ float h = vW.y - uY; float band = exp(-max(0., h + 2.) / 9.) * smoothstep(-14., -2., h); float d = length(vW.xz - uP.xz); float near = smoothstep(150., 30., d);
+        void main(){ float h = vW.y - uY; float band = exp(-max(0., h + 2.) / 9.) * smoothstep(-14., -2., h); float d = length(vW.xz - uP.xz); float near = (1. - smoothstep(30., 150., d));
           float s = (vW.x + vW.z) * .35; float n = vn(vec2(s, h * .15 - t * .6)) * .7 + vn(vec2(s * 3.1, h * .5 - t * 1.3)) * .3; float streak = smoothstep(.35, .95, n);
-          float lip = exp(-pow((h + .3) * 1.4, 2.)) * (.6 + .4 * sin(s * 4. + t * 3.));
+          float lh = (h + .3) * 1.4; float lip = exp(-lh * lh) * (.6 + .4 * sin(s * 4. + t * 3.));
           vec3 col = vec3(1.25, .45, 2.6) * (band * (.18 + .55 * streak)) + vec3(2.4, 1.6, 3.2) * lip * .45; gl_FragColor = vec4(col * near, 1.); }` });
     const wall = (x, z, L, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(L, 90, Math.ceil(L / 6), 1), mat); m.position.set(x, 0, z); m.rotation.y = ry; m.renderOrder = 4; m.frustumCulled = false; m.userData.noClimb = 1; g.add(m); };
     wall((X0 + X1) / 2, Z0, X1 - X0, 0); wall((X0 + X1) / 2, Z1, X1 - X0, 0); wall(X0, (Z0 + Z1) / 2, Z1 - Z0, Math.PI / 2); wall(X1, (Z0 + Z1) / 2, Z1 - Z0, Math.PI / 2);
@@ -15692,7 +15692,7 @@ const Undertow = { C: null,
     const vMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false, uniforms: { t: { value: 0 }, k: { value: 1 } },
       vertexShader: `varying vec2 vU; void main(){ vU = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }`,
       fragmentShader: SK_NOISE + `uniform float t, k; varying vec2 vU; void main(){ float a = vU.x * 6.2832, y = vU.y; float sw = vn(vec2(vU.x * 9. + y * 5. - t * .9, y * 3. - t * .7)); float s2 = vn(vec2(vU.x * 23. - y * 9. + t * 1.6, y * 11.));
-        float band = smoothstep(.45, .85, sw) * .8 + smoothstep(.6, .95, s2) * .6; float ends = smoothstep(0., .12, y) * (.55 + .45 * smoothstep(1., .75, y));
+        float band = smoothstep(.45, .85, sw) * .8 + smoothstep(.6, .95, s2) * .6; float ends = smoothstep(0., .12, y) * (.55 + .45 * (1. - smoothstep(.75, 1., y)));
         vec3 col = mix(vec3(.5, 1.6, 2.2), vec3(2.6, 2.6, 2.9), smoothstep(.2, 1., band)); gl_FragColor = vec4(col * band * ends * .55 * k, 1.); }` });
     const f1 = ro(new THREE.Mesh(new THREE.CylinderGeometry(.7, 3.2, 7.2, 48, 8, true), vMat)); f1.position.y = 3.6; g.add(f1);
     const f2 = ro(new THREE.Mesh(new THREE.CylinderGeometry(.35, 1.6, 7.2, 32, 6, true), vMat)); f2.position.y = 3.6; g.add(f2);
@@ -15701,7 +15701,7 @@ const Undertow = { C: null,
     const rings = []; for (let i = 0; i < 4; i++) { const r = addM(new THREE.RingGeometry(5 + i * 2.4, 5.08 + i * 2.4, 96).rotateX(-Math.PI / 2), [.7, 1.9, 2.2], .45 - i * .08); r.position.y = .04; g.add(r); rings.push(r); }
     const sig = addM(new THREE.CircleGeometry(3.6, 48).rotateX(-Math.PI / 2), [.8, 2, 2.3], .5); sig.material.map = TEX.sigil; sig.position.y = .06; g.add(sig);
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: new THREE.Color(.5, 1.3, 1.6), transparent: true, opacity: .55, blending: THREE.AdditiveBlending, depthWrite: false })); halo.scale.set(16, 10, 1); halo.position.y = 7; halo.renderOrder = 1; g.add(halo);
-    if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) { const lamp = new THREE.PointLight(0x8fe6ff, 40, 28, 1.6); lamp.position.y = 3.5; g.add(lamp); }
+    if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) { const lamp = new THREE.PointLight(0x8fe6ff, 6, 28, 1.2); lamp.position.y = 5.5; g.add(lamp); }
     // stones that fell upwards
     const stM = new THREE.MeshStandardMaterial({ color: 0x26242c, roughness: .9, flatShading: true, emissive: 0x0a2a30, emissiveIntensity: .5 }); const stones = [];
     for (let i = 0; i < 14; i++) { const s = ro(new THREE.Mesh(new THREE.DodecahedronGeometry(rand(.35, 1.1), 0), stM)); const a = i / 14 * 6.283 + rand(-.2, .2), r = rand(6, 19), y = rand(1.6, 6 + r * .4); s.castShadow = true; g.add(s); stones.push({ s, a, r, y, ph: rand(0, 6), sp: rand(.03, .08) * (i % 2 ? 1 : -1) }); }
@@ -15759,8 +15759,9 @@ Object.assign(ZH_DICT, { 'The Undertow': '逆流之根', 'Where the wormholes pu
    ===================================================================== */
 const Readable = { base: { exp: null, hemi: null }, last: { exp: null, hemi: null }, k: 0,
   night(W) { if (!W) return 0; if (W.id === 'city' || W.id === 'modern') return clamp(1 - (W.dayK ?? 0), 0, 1); if (W.id === 'mech' || W.id === 'demon') return .6; if (W.id === 'arcane') return .45; return 0; },
-  light() { if (this.L) return this.L; const L = this.L = new THREE.PointLight(0xc9dcff, 0, 16, 1.4); L.castShadow = false; scene.add(L);
-    const F = this.F = new THREE.PointLight(0xb8c8ff, 0, 30, 1.2); scene.add(F); return L; },
+  // a moonlight from over the camera's shoulder: a directional light has no distance falloff, so it can never blow up on a
+  // surface right next to it (a point light at the hunter's shoulder did, on her suit's specular, past half-float range)
+  light() { if (this.L) return this.L; const L = this.L = new THREE.DirectionalLight(0xc9dcff, 0); L.castShadow = false; scene.add(L); scene.add(L.target); this.F = { position: new THREE.Vector3(), intensity: 0 }; return L; },
   rimTex() { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 20, 64, 64, 64); gr.addColorStop(0, '#000'); gr.addColorStop(.7, '#03060a'); gr.addColorStop(.9, '#3d5f82'); gr.addColorStop(1, '#a9d0f2');
     g.fillStyle = gr; g.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; },
   xmat() { if (this.xm) return this.xm; return this.xm = new THREE.MeshMatcapMaterial({ matcap: this.rimTex(), transparent: true, opacity: .7, blending: THREE.AdditiveBlending, depthWrite: false, depthFunc: THREE.GreaterDepth, fog: false, toneMapped: false }); },
@@ -15777,15 +15778,23 @@ const Readable = { base: { exp: null, hemi: null }, last: { exp: null, hemi: nul
     try { const e = renderer.toneMappingExposure; if (this.last.exp == null || Math.abs(e - this.last.exp) > 1e-6) this.base.exp = e; const want = this.base.exp * (1 + .24 * this.k); renderer.toneMappingExposure = want; this.last.exp = want;
       if (W.hemi) { if (this.hW !== W) { this.hW = W; this.last.hemi = null; } const h = W.hemi.intensity; if (this.last.hemi == null || Math.abs(h - this.last.hemi) > 1e-6) this.base.hemi = h; const wh = this.base.hemi * (1 + .7 * this.k) + .25 * this.k; W.hemi.intensity = wh; this.last.hemi = wh; } } catch (e) {}
     // the travelling light: on the hunter, a little toward the camera; a wide faint fill above
-    const Y0 = (pl.gy || 0) + (pl.py || 0); if (window.__AZlite) return; const L = this.light(); const Y = (pl.gy || 0) + (pl.py || 0); const cx = camera.position.x - pl.pos.x, cz = camera.position.z - pl.pos.z, cl = Math.hypot(cx, cz) || 1;
-    L.position.set(pl.pos.x + cx / cl * 1.6, Y + 2.4, pl.pos.z + cz / cl * 1.6); L.intensity = 26 * this.k;
-    this.F.position.set(pl.pos.x, Y + 9, pl.pos.z); this.F.intensity = 55 * this.k;
+    const Y0 = (pl.gy || 0) + (pl.py || 0); const L = this.light(); const Y = (pl.gy || 0) + (pl.py || 0); const cx = camera.position.x - pl.pos.x, cz = camera.position.z - pl.pos.z, cl = Math.hypot(cx, cz) || 1;
+    L.position.set(pl.pos.x + cx / cl * 8, Y + 9, pl.pos.z + cz / cl * 8); L.target.position.set(pl.pos.x, Y + 1, pl.pos.z); L.intensity = .85 * this.k;
+    
+    if (window.__AZlite) return;
     // x-ray twins: built for every rig the hunter wears, shown only while playing
     this.scanT -= dt; if (this.scanT <= 0) { this.scanT = 2; try { this.xray(pl); } catch (e) { console.warn('xray', e); } }
     const on = (Game.state === 'playing' || Game.state === 'paused') && !(typeof Cine !== 'undefined' && Cine.on) && pl.root.visible;
     for (const s of this.twins) { const src = s.userData.src; if (src) { s.visible = on && src.visible; s.position.copy(src.position); s.quaternion.copy(src.quaternion); s.scale.copy(src.scale); } else s.visible = on; } } };
 window.__AZread = Readable;
 setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); try { Readable.tick(Math.min(.1, rdt || 0)); } catch (e) { console.warn('read', e); } }; }, 0);
+
+// a guard ahead of the bloom: any pixel that came out of a shader as not-a-number or infinite is zeroed and the rest are
+// capped, so one bad fragment can never spread through the bloom's blur as a black block across the screen
+setTimeout(() => { try { const C = window.__AZcomposer; if (!C || C._guard) return; C._guard = 1;
+  const g = new ShaderPass({ uniforms: { tDiffuse: { value: null } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+    fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); if (any(isnan(c)) || any(isinf(c))) c = vec4(0., 0., 0., 1.); gl_FragColor = vec4(min(c.rgb, vec3(48.)), clamp(c.a, 0., 1.)); }' });
+  const i = C.passes.findIndex(p => p.constructor && p.constructor.name === 'RenderPass'); C.insertPass(g, i >= 0 ? i + 1 : 1); window.__AZguard = g; } catch (e) { console.warn('guard', e); } }, 0);
 /* =====================================================================
    BUILD 3.18.1 · THE RIM (the gen-2 world edge, brought into every ground world)
    The Fray's push-back and its invisible wall are gone. Each ground world (Ruined City, Drift Downtown, the Arcane Realm,
@@ -15866,7 +15875,7 @@ const Rim = { MC: 2, lite: RIM_LITE,
           vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`, fragmentShader: RIM_NOISE + fs })); m.frustumCulled = false; m.renderOrder = ro; m.userData.noClimb = 1; root.add(m); };
       mk(sheet, suv, `uniform float time; varying vec2 vUv; void main(){ float v = vUv.y; float n = rfbm(vec2(vUv.x * .18, v * 3. - time * .35)); float k = pow(1. - v, 2.2) * (.55 + .9 * n);
           vec3 c = mix(vec3(.95, .35, 1.3), vec3(.3, .07, .6), clamp(v * 1.6, 0., 1.)); float veins = smoothstep(.62, .78, rfbm(vec2(vUv.x * .5, v * 9.))) * (1. - v); gl_FragColor = vec4(c * (k * .3 + veins * .32), 1.); }`, 2);
-      mk(lip, luv, `uniform float time; varying vec2 vUv; void main(){ float n = rfbm(vec2(vUv.x * .35, vUv.y * 1.2 - time * .9)); float tongue = smoothstep(.15 + n * .9, 0., vUv.y);
+      mk(lip, luv, `uniform float time; varying vec2 vUv; void main(){ float n = rfbm(vec2(vUv.x * .35, vUv.y * 1.2 - time * .9)); float tongue = 1. - smoothstep(0., .15 + n * .9, vUv.y);
           float pulse = .75 + .25 * sin(vUv.x * .07 + time * 1.3); vec3 c = mix(vec3(1.1, .35, 1.5), vec3(.6, .7, 1.6), n * .4); gl_FragColor = vec4(c * tongue * pulse * .42, 1.); }`, 3); }
     W._rim.pts = pts;
     // the sea of mist
@@ -15913,8 +15922,8 @@ const Rim = { MC: 2, lite: RIM_LITE,
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('seed', new THREE.BufferAttribute(A, 1));
       const mat = new THREE.ShaderMaterial({ uniforms: { time }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false,
         vertexShader: `uniform float time; attribute float seed; varying float vA; void main(){ vec3 p = position; float life = fract(seed + time * (.025 + seed * .03)); p.y += life * 46.; p.x += sin(time * .4 + seed * 40.) * 1.5; p.z += cos(time * .33 + seed * 31.) * 1.5;
-          vA = smoothstep(0., .15, life) * (1. - smoothstep(.7, 1., life)); vec4 mv = modelViewMatrix * vec4(p, 1.); gl_Position = projectionMatrix * mv; gl_PointSize = (2. + seed * 4.) * 90. / -mv.z; }`,
-        fragmentShader: `varying float vA; void main(){ float d = length(gl_PointCoord - .5); float a = smoothstep(.5, .0, d) * vA; gl_FragColor = vec4(vec3(.9, .45, 1.4) * a, 1.); }` });
+          vA = smoothstep(0., .15, life) * (1. - smoothstep(.7, 1., life)); vec4 mv = modelViewMatrix * vec4(p, 1.); gl_Position = projectionMatrix * mv; gl_PointSize = min(40., (2. + seed * 4.) * 90. / max(1., -mv.z)); }`,
+        fragmentShader: `varying float vA; void main(){ float d = length(gl_PointCoord - .5); float a = (1. - smoothstep(.0, .5, d)) * vA; gl_FragColor = vec4(vec3(.9, .45, 1.4) * a, 1.); }` });
       const m = new THREE.Points(geo, mat); m.frustumCulled = false; m.renderOrder = 4; m.userData.noClimb = 1; root.add(m); }
     for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(W._rim.rockGeo, W._rim.fallMat); m.visible = false; m.castShadow = true; m.userData.noRim = 1; root.add(m); W._rim.crumble.push({ m, on: false, v: 0, w: new V3() }); }
     W._rim.ms = Math.round(performance.now() - t0); },
