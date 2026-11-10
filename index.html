@@ -16021,13 +16021,13 @@ Object.assign(ZH_DICT, { 'The Void swallowed you · back where you jumped': '被
      faded to 22 % and could not be read; "Continue / No save yet" was cramped on the title.
      → Region card moves up and shrinks; a soft scrim behind the objective; idle HUD at 50 %; title spacing fixed.
    ===================================================================== */
-const ArtU = { uDet: { value: 1 }, uRimC: { value: new THREE.Color(.62, .7, .95) }, uRimK: { value: .7 } };
+const ArtU = { uDet: { value: 1 }, uFloor: { value: .04 }, uCeil: { value: .35 }, uRimC: { value: new THREE.Color(.62, .7, .95) }, uRimK: { value: .7 } };
 const ART_NOISE = `float azh(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float azn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(azh(i), azh(i + vec2(1, 0)), f.x), mix(azh(i + vec2(0, 1)), azh(i + vec2(1, 1)), f.x), f.y); }`;
 const Art = {
-  GR: { city: { sat: .68, con: 1.08, exp: 1, rim: [.62, .7, .95] }, modern: { sat: .64, con: 1.12, exp: .88, rim: [.7, .85, 1] }, arcane: { sat: .74, con: 1.07, exp: 1, rim: [.85, .65, 1] },
-    mech: { sat: .74, con: 1.2, exp: .7, rim: [1, .78, .55] }, demon: { sat: .76, con: 1.12, exp: .95, rim: [1, .55, .42] }, void: { sat: .55, con: 1.06, exp: 1, rim: [.92, .92, 1] } },
-  def: { sat: .64, con: 1.06, exp: 1, rim: [.75, .78, .95] },
+  GR: { city: { sat: .68, con: 1.08, exp: 1, fl: .05, ce: .3, rim: [.62, .7, .95] }, modern: { sat: .64, con: 1.12, exp: .88, fl: .075, ce: .17, rim: [.7, .85, 1] }, arcane: { sat: .74, con: 1.07, exp: 1, fl: .04, ce: .35, rim: [.85, .65, 1] },
+    mech: { sat: .74, con: 1.2, exp: .7, fl: .04, ce: .26, rim: [1, .78, .55] }, demon: { sat: .76, con: 1.12, exp: .95, fl: .04, ce: .3, rim: [1, .55, .42] }, void: { sat: .55, con: 1.06, exp: 1, fl: .03, ce: .4, rim: [.92, .92, 1] } },
+  def: { sat: .64, con: 1.06, exp: 1, fl: .04, ce: .35, rim: [.75, .78, .95] },
   grade() { if (this.gp !== undefined) return this.gp; const C = window.__AZcomposer; this.gp = C ? C.passes.find(p => p.constructor && p.constructor.name === 'ShaderPass' && p.uniforms && p.uniforms.uSat) || null : null; return this.gp; },
   base: {}, last: {},
   // set a uniform to base * f without stacking on our own change; the game may rewrite the base every frame
@@ -16036,15 +16036,19 @@ const Art = {
   detail(W) { const done = new Set(); W.group.traverse(o => { if (!o.isMesh || o.userData.noRim || o.userData.noDetail) return; const L = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of L) { if (!m || done.has(m) || m.userData.det || m.isShaderMaterial || m.isMeshBasicMaterial || m.transparent) continue; if (!(m.isMeshStandardMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial || m.isMeshToonMaterial)) continue;
         done.add(m); m.userData.det = 1; const prev = m.onBeforeCompile, pk = m.customProgramCacheKey; const prevKey = pk && pk !== THREE.Material.prototype.customProgramCacheKey ? pk.bind(m) : null; const prevStr = prev ? prev.toString() : '';
-        m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m, sh, r); sh.uniforms.uDet = ArtU.uDet;
+        m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m, sh, r); sh.uniforms.uDet = ArtU.uDet; sh.uniforms.uFloor = ArtU.uFloor; sh.uniforms.uCeil = ArtU.uCeil;
           sh.vertexShader = 'varying vec3 vDW; varying vec3 vDN;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n#ifdef USE_INSTANCING\n vDW = (modelMatrix * instanceMatrix * vec4(transformed, 1.)).xyz; vDN = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);\n#else\n vDW = (modelMatrix * vec4(transformed, 1.)).xyz; vDN = normalize(mat3(modelMatrix) * objectNormal);\n#endif');
-          sh.fragmentShader = 'varying vec3 vDW; varying vec3 vDN; uniform float uDet;\n' + ART_NOISE + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+          sh.fragmentShader = 'varying vec3 vDW; varying vec3 vDN; uniform float uDet; uniform float uFloor; uniform float uCeil;\n' + ART_NOISE + '\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
   { vec3 dn = normalize(vDN); float up = smoothstep(.55, .9, abs(dn.y)); vec2 g = vDW.xz;
     float macro = azn(g * .045) * .6 + azn(g * .13 + 7.) * .4; float fine = azn(g * 1.7 + vDW.y * .3); float grit = azh(floor(g * 9.));
     float streak = azn(vec2((vDW.x + vDW.z) * .9, vDW.y * .07)); float band = azn(vec2((vDW.x - vDW.z) * .05, vDW.y * .5));
     float flo = .84 + .28 * macro + .07 * (fine - .5) + .04 * (grit - .5); float wal = .88 + .2 * streak + .06 * (band - .5) + .05 * (fine - .5);
-    diffuseColor.rgb *= mix(1., mix(wal, flo, up), uDet); }`); };
-        m.customProgramCacheKey = () => (prevKey ? prevKey() : prevStr) + '|det1'; m.needsUpdate = true; } }); W._det = 1; },
+    diffuseColor.rgb *= mix(1., mix(wal, flo, up), uDet);
+    // albedo range per world: near-black asphalt lifts to a readable dark grey (hue kept), floors brighter than the
+    // world's ceiling come down, so a lit slab beside a shadowed street no longer reads as white against black
+    float al = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722));
+    diffuseColor.rgb *= clamp(uFloor / max(al, 1e-3), 1., 4.) * mix(1., clamp(uCeil / max(al, 1e-3), .45, 1.), up); }`); };
+        m.customProgramCacheKey = () => (prevKey ? prevKey() : prevStr) + '|det2'; m.needsUpdate = true; } }); W._det = 1; },
   // ---- the hunter's rim light
   rim(pl) { if (!pl || !pl.root) return; pl.root.traverse(o => { if (!o.isMesh || o.userData.xr) return; const L = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of L) { if (!m || m.userData.rimL || m.isShaderMaterial || m.isMeshBasicMaterial || m.blending === THREE.AdditiveBlending) continue; if (!(m.isMeshStandardMaterial || m.isMeshPhysicalMaterial || m.isMeshToonMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial)) continue;
@@ -16057,9 +16061,9 @@ const Art = {
     if (!W._det && (W._cgAdopted || !W._cg)) { try { this.detail(W); } catch (e) { console.warn('detail', e); W._det = 1; } }
     this.scanT -= dt; if (this.scanT <= 0) { this.scanT = 2; try { this.rim(pl); } catch (e) { console.warn('rimL', e); } }
     const gp = this.grade(); if (gp) { if (this.gW !== W) { if (this.gW) { try { if (Game.radioQ && Game.radioQ.length) { Game.radioQ.length = 0; if (Game.radioBusy) Game.nextRadio(); } } catch (e) {} } this.gW = W; try { if (W.env) W.env.sat = G.sat; } catch (e) {} gp.uniforms.uSat.value = G.sat; } if (Game.state !== 'photo') gp.uniforms.uCon.value = damp(gp.uniforms.uCon.value, G.con, 3, dt); }
-    try { Readable.expF = G.exp; } catch (e) {}
+    try { Readable.expF = G.exp; } catch (e) {} ArtU.uFloor.value = damp(ArtU.uFloor.value, G.fl, 3, dt); ArtU.uCeil.value = damp(ArtU.uCeil.value, G.ce, 3, dt);
     this.rc = this.rc || new THREE.Color(); this.rc.setRGB(...G.rim); ArtU.uRimC.value.lerp(this.rc, Math.min(1, dt * 2)); let night = 0; try { night = Readable.k || 0; } catch (e) {} ArtU.uRimK.value = .55 + .35 * night; } };
-window.__AZart = Art;
+window.__AZart = Art; window.__AZartU = ArtU;
 // the night lift: only under a real night sky, and gentler; each world's exposure factor rides on the same base
 { const R = Readable; R.night = function (W) { if (!W || W.dayK == null) return 0; if (W.id === 'city' || W.id === 'modern') return clamp(1 - W.dayK, 0, 1) * .7; return 0; };
   const t0 = R.tick.bind(R); R.tick = function (dt) { t0(dt); try { const f = this.expF || 1; if (f !== 1 && this.last.exp != null) { const e = this.base.exp * (1 + .24 * this.k) * f; renderer.toneMappingExposure = e; this.last.exp = e; } } catch (e) {} }; }
