@@ -16039,19 +16039,20 @@ float azpat(vec2 g, float up, float near){ if (uPat < .5 || up < .01) return 1.;
   if (uPat < 1.5) { vec2 c = g / vec2(1.4, .7); c.x += step(1., mod(floor(c.y), 2.)) * .5; vec2 id = floor(c), f = fract(c);
     float e = min(min(f.x, 1. - f.x) * 1.4, min(f.y, 1. - f.y) * .7); m = mix(.58, 1., smoothstep(.012, .045, e)) * (.9 + .2 * azh(id)); }
   else if (uPat < 2.5) { vec2 v = azvor(g * .15); float seam = 1. - (1. - smoothstep(0., .03, v.y)) * .5; float pch = .9 + .2 * azh(floor(g * .15 + v.x)); m = seam * pch * (.93 + .14 * azh(floor(g * 14.)) * near); }
-  else if (uPat < 3.5) { vec2 v = azvor(g * .55); float j = smoothstep(.02, .09, v.y); m = mix(.52, 1., j) * (.9 + .2 * azh(floor(g * .55 + v.x * 3.)));
-    azVein = (1. - smoothstep(0., .045, v.y)) * smoothstep(.72, .8, azn(g * .06 + 11.)) * up; }
+  else if (uPat < 3.5) { vec2 v = azvor((g + vec2(azn(g * .3), azn(g * .3 + 9.)) * 1.2) * .55); float j = smoothstep(.02, .09, v.y); m = mix(.52, 1., j) * (.9 + .2 * azh(floor(g * .55 + v.x * 3.)));
+    azVein = (1. - smoothstep(0., .04, v.y)) * smoothstep(.74, .82, azn(g * .06 + 11.)) * up * near; }
   else if (uPat < 4.5) { vec2 c = g / 2.4; vec2 id = floor(c), f = fract(c); vec2 fe = min(f, 1. - f); float e = min(fe.x, fe.y) * 2.4; float seam = smoothstep(.02, .06, e);
     float rv = min(length(vec2((fract(f.x * 8.) - .5) / 8., fe.y - .055)), length(vec2((fract(f.y * 8.) - .5) / 8., fe.x - .055))); float rivet = smoothstep(.02, .011, rv) * near;
     float tread = step(.62, azh(id)) * step(0., sin((f.x + f.y) * 70.) * sin((f.x - f.y) * 70.)) * near;
     m = mix(.42, 1., seam) * (.86 + .22 * azh(id)) * (1. - .1 * tread) * (1. + .45 * rivet); }
-  else if (uPat < 5.5) { vec2 v = azvor(g * .3); float crack = 1. - smoothstep(0., .06, v.y); float hot = smoothstep(.42, .68, azn(g * .045 + 3.));
-    m = (1. - .6 * crack) * (.82 + .3 * azh(floor(g * .3 + v.x * 2.))); azVein = crack * hot * up; }
+  else if (uPat < 5.5) { vec2 gw = g + vec2(azn(g * .18), azn(g * .18 + 5.)) * 3.2; vec2 v = azvor(gw * .26); float wv = .02 + .035 * azn(gw * .4);
+    float crack = 1. - smoothstep(0., wv, v.y); float hot = smoothstep(.62, .8, azn(g * .03 + 3.)) * (.55 + .45 * azn(gw * .9));
+    m = (1. - .62 * crack) * (.8 + .32 * azh(floor(gw * .26 + v.x * 2.))); azVein = crack * hot * up * mix(.25, 1., near); }
   else { vec2 q = g / 3.; float l = min(abs(fract(q.x + q.y * .5) - .5), abs(fract(q.y) - .5)); m = 1. + .16 * (1. - smoothstep(.0, .025, l)) * near; }
   return mix(1., m, up); }`;
 const Art = {
-  GR: { city: { sat: .68, con: 1.08, exp: 1, fl: .05, ce: .3, pat: 1, vein: [0, 0, 0], rim: [.62, .7, .95] }, modern: { sat: .64, con: 1.12, exp: .88, fl: .075, ce: .17, pat: 2, vein: [0, 0, 0], rim: [.7, .85, 1] }, arcane: { sat: .74, con: 1.07, exp: 1, fl: .04, ce: .35, pat: 3, vein: [.55, .32, 1.2], rim: [.85, .65, 1] },
-    mech: { sat: .74, con: 1.2, exp: .7, fl: .04, ce: .26, pat: 4, vein: [0, 0, 0], rim: [1, .78, .55] }, demon: { sat: .76, con: 1.12, exp: .95, fl: .04, ce: .3, pat: 5, vein: [2.4, .62, .12], rim: [1, .55, .42] }, void: { sat: .55, con: 1.06, exp: 1, fl: .03, ce: .4, pat: 6, vein: [0, 0, 0], rim: [.92, .92, 1] } },
+  GR: { city: { sat: .68, con: 1.08, exp: 1, fl: .05, ce: .3, pat: 1, vein: [0, 0, 0], rim: [.62, .7, .95] }, modern: { sat: .64, con: 1.12, exp: .88, fl: .075, ce: .17, pat: 2, vein: [0, 0, 0], rim: [.7, .85, 1] }, arcane: { sat: .74, con: 1.07, exp: 1, fl: .04, ce: .35, pat: 3, vein: [.38, .2, .9], rim: [.85, .65, 1] },
+    mech: { sat: .74, con: 1.2, exp: .7, fl: .04, ce: .26, pat: 4, vein: [0, 0, 0], rim: [1, .78, .55] }, demon: { sat: .76, con: 1.12, exp: .95, fl: .04, ce: .3, pat: 5, vein: [1.15, .3, .06], rim: [1, .55, .42] }, void: { sat: .55, con: 1.06, exp: 1, fl: .03, ce: .4, pat: 6, vein: [0, 0, 0], rim: [.92, .92, 1] } },
   def: { sat: .64, con: 1.06, exp: 1, fl: .04, ce: .35, pat: 0, vein: [0, 0, 0], rim: [.75, .78, .95] },
   grade() { if (this.gp !== undefined) return this.gp; const C = window.__AZcomposer; this.gp = C ? C.passes.find(p => p.constructor && p.constructor.name === 'ShaderPass' && p.uniforms && p.uniforms.uSat) || null : null; return this.gp; },
   base: {}, last: {},
@@ -16134,7 +16135,7 @@ const Scarf = {
     const m = new THREE.Mesh(g, this.mat()); m.frustumCulled = false; m.castShadow = true; m.renderOrder = 2; scene.add(m);
     const p = [], q = []; for (let i = 0; i < n; i++) { p.push(new V3()); q.push(new V3()); }
     return { m, g, n, seg: len / (n - 1), w0, w1, p, q, ph: Math.random() * 9 }; },
-  build() { this.tails = [this.tail(13, 1.05, .15, .1), this.tail(10, .72, .13, .09)];
+  build() { this.tails = [this.tail(13, 1.05, .19, .12), this.tail(10, .72, .16, .1)];
     const wg = new THREE.TorusGeometry(.105, .04, 8, 22); wg.scale(1, 1, .8); this.wrap = new THREE.Mesh(wg, this.mat()); this.wrap.castShadow = true; scene.add(this.wrap);
     const kg = new THREE.SphereGeometry(.055, 10, 8); this.knot = new THREE.Mesh(kg, this.mat()); scene.add(this.knot);
     window.__AZscarf = this; },
