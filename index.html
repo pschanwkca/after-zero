@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.18.4</small>
+        <small>Rift Hunter field prototype · Build 3.18.5</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.18.4":"裂隙獵人 實地原型 · Build 3.18.4","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.18.5":"裂隙獵人 實地原型 · Build 3.18.5","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -15861,10 +15861,11 @@ const Rim = { MC: 2, lite: RIM_LITE,
     const jit = (x, z) => [x + Math.sin(z * .37 + x * .11) * .7, z + Math.cos(x * .31 - z * .13) * .7];
     const gh = (x, z) => { let h = -1e4; try { h = Climb.gh(W, x, z); } catch (e) {} return h; };
     const segs = this.contour(W, G); const pts = [];
+    const gmin = (x, z, nx, nz) => { let y = 1e9; for (const [d, l] of [[1, 0], [3, 0], [6, 0], [2, 3], [2, -3], [5, 5], [5, -5]]) { const h = gh(x - nx * d - nz * l, z - nz * d + nx * l); if (h > -100 && h < y) y = h; } return y > 1e8 ? -1e4 : y; };
     // the island's own height at the edge: the mist sits forty metres under it
-    const ys = []; for (let s = 0; s < segs.length; s += Math.max(1, (segs.length / 200) | 0)) { const [a, , n] = segs[s]; const y = gh(a[0] - n[0] * 1.2, a[1] - n[1] * 1.2); if (y > -100) ys.push(y); } ys.sort((a, b) => a - b); const yB = ys.length ? ys[(ys.length / 2) | 0] : 0; W._rim.yB = yB;
+    const ys = []; for (let s = 0; s < segs.length; s += Math.max(1, (segs.length / 200) | 0)) { const [a, , n] = segs[s]; let y = 1e9; for (const [d, l] of [[1.2, 0], [3, 0], [6, 0], [2, 3], [2, -3]]) { const h = gh(a[0] - n[0] * d - n[1] * l, a[1] - n[1] * d + n[0] * l); if (h > -100 && h < y) y = h; } if (y < 1e8) ys.push(y); } ys.sort((a, b) => a - b); const yB = ys.length ? ys[(ys.length / 2) | 0] : 0; const yLow = ys.length ? ys[(ys.length * .12) | 0] : 0; W._rim.yB = yB; W._rim.yLow = yLow;
     { const sheet = [], suv = [], lip = [], luv = []; let run = 0;
-      for (const [a, b, n] of segs) { const [ax, az] = jit(a[0], a[1]), [bx, bz] = jit(b[0], b[1]); const nx = n[0], nz = n[1]; let ya = gh(ax - nx, az - nz), yb = gh(bx - nx, bz - nz); if (ya < -100) ya = yB; if (yb < -100) yb = yB; const L = Math.hypot(bx - ax, bz - az);
+      for (const [a, b, n] of segs) { const [ax, az] = jit(a[0], a[1]), [bx, bz] = jit(b[0], b[1]); const nx = n[0], nz = n[1]; let ya = gmin(ax, az, nx, nz), yb = gmin(bx, bz, nx, nz); if (ya < -100) ya = yB; if (yb < -100) yb = yB; const L = Math.hypot(bx - ax, bz - az);
         pts.push([(ax + bx) / 2, (az + bz) / 2, (ya + yb) / 2, nx, nz]);
         sheet.push(ax + nx * .6, ya + .1, az + nz * .6, bx + nx * .6, yb + .1, bz + nz * .6, bx + nx * 4.2, yb - 24, bz + nz * 4.2, ax + nx * .6, ya + .1, az + nz * .6, bx + nx * 4.2, yb - 24, bz + nz * 4.2, ax + nx * 4.2, ya - 24, az + nz * 4.2);
         suv.push(run, 0, run + L, 0, run + L, 1, run, 0, run + L, 1, run, 1);
@@ -15874,25 +15875,43 @@ const Rim = { MC: 2, lite: RIM_LITE,
         const m = new THREE.Mesh(g, new THREE.ShaderMaterial({ uniforms: { time }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, toneMapped: false,
           vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`, fragmentShader: RIM_NOISE + fs })); m.frustumCulled = false; m.renderOrder = ro; m.userData.noClimb = 1; root.add(m); };
       mk(sheet, suv, `uniform float time; varying vec2 vUv; void main(){ float v = vUv.y; float n = rfbm(vec2(vUv.x * .18, v * 3. - time * .35)); float k = pow(1. - v, 2.2) * (.55 + .9 * n);
-          vec3 c = mix(vec3(.95, .35, 1.3), vec3(.3, .07, .6), clamp(v * 1.6, 0., 1.)); float veins = smoothstep(.62, .78, rfbm(vec2(vUv.x * .5, v * 9.))) * (1. - v); gl_FragColor = vec4(c * (k * .3 + veins * .32), 1.); }`, 2);
+          vec3 c = mix(vec3(.95, .35, 1.3), vec3(.3, .07, .6), clamp(v * 1.6, 0., 1.)); float veins = smoothstep(.62, .78, rfbm(vec2(vUv.x * .5, v * 9.))) * (1. - v); gl_FragColor = vec4(c * (k * .17 + veins * .22), 1.); }`, 2);
       mk(lip, luv, `uniform float time; varying vec2 vUv; void main(){ float n = rfbm(vec2(vUv.x * .35, vUv.y * 1.2 - time * .9)); float tongue = 1. - smoothstep(0., .15 + n * .9, vUv.y);
           float pulse = .75 + .25 * sin(vUv.x * .07 + time * 1.3); vec3 c = mix(vec3(1.1, .35, 1.5), vec3(.6, .7, 1.6), n * .4); gl_FragColor = vec4(c * tongue * pulse * .42, 1.); }`, 3); }
     W._rim.pts = pts;
+    // the cliff itself: a skirt of crag hanging from every metre of the edge, tapering in under the island like the
+    // underside of a floating rock; every vertex is placed from its own position, so neighbouring pieces always meet
+    { const self = this; const grad = (x, z) => { const gx = self.sd(W, x + 1.5, z) - self.sd(W, x - 1.5, z), gz = self.sd(W, x, z + 1.5) - self.sd(W, x, z - 1.5); const l = Math.hypot(gx, gz) || 1; return [gx / l, gz / l]; };
+      const hsh = (x, z, k) => { const v = Math.sin(x * 12.9898 + z * 78.233 + k * 37.719) * 43758.5453; return v - Math.floor(v); };
+      const vn2 = (x, z, k, f) => { const X = x * f, Z = z * f, i = Math.floor(X), j = Math.floor(Z), u = X - i, v = Z - j, su = u * u * (3 - 2 * u), sv = v * v * (3 - 2 * v); return (hsh(i, j, k) * (1 - su) + hsh(i + 1, j, k) * su) * (1 - sv) + (hsh(i, j + 1, k) * (1 - su) + hsh(i + 1, j + 1, k) * su) * sv; };
+      const LV = [[0, -.3], [1.2, .15], [3.5, .9], [8, 2.4], [14, 5], [22, 9], [32, 14.5], [44, 21], [56, 27]];
+      const cache = new Map(); const vert = (x, z) => { const key = x.toFixed(2) + ',' + z.toFixed(2); let v = cache.get(key); if (v) return v; const g = grad(x, z);
+        let yt = 1e9; for (const [d, l] of [[1.2, 0], [3, 0], [6, 0], [2, 3], [2, -3], [5, 5], [5, -5]]) { const h = gh(x - g[0] * d - g[1] * l, z - g[1] * d + g[0] * l); if (h > -100 && h < yt) yt = h; } if (yt > 1e8) yt = yLow;
+        v = LV.map(([d, ins], L) => { const crag = (vn2(x, z, L, .3) - .5) * (1 + L * .9) + (vn2(x, z, L + 9, 1.3) - .5) * (.5 + L * .2); const o = -ins + (L ? crag : 0);
+          const yy = yt - d + (L ? (vn2(x, z, L + 20, .45) - .5) * (1 + L * .7) : .04); return [x + g[0] * o, yy, z + g[1] * o]; }); cache.set(key, v); return v; };
+      const pos = [], col = []; const top = [.25, .23, .27], deep = [.1, .06, .16];
+      for (const [a, b] of segs) { const [ax, az] = jit(a[0], a[1]), [bx, bz] = jit(b[0], b[1]); const A = vert(ax, az), B = vert(bx, bz);
+        for (let L = 0; L < LV.length - 1; L++) { const k0 = L / (LV.length - 1), k1 = (L + 1) / (LV.length - 1); const st = (L % 2 ? .9 : 1.08);
+          const c0 = top.map((t, i) => (t + (deep[i] - t) * k0) * st), c1 = top.map((t, i) => (t + (deep[i] - t) * k1) * st);
+          pos.push(...A[L], ...B[L], ...B[L + 1], ...A[L], ...B[L + 1], ...A[L + 1]); col.push(...c0, ...c0, ...c1, ...c0, ...c1, ...c1); } }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+      const cm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .95, metalness: 0, flatShading: true, side: THREE.DoubleSide, emissive: 0x14061f, emissiveIntensity: .7 }); cm.userData.rim = 1;
+      const cliff = new THREE.Mesh(g, cm); cliff.receiveShadow = true; cliff.frustumCulled = false; cliff.userData.noClimb = 1; cliff.userData.noRim = 1; root.add(cliff); W._rim.cliff = cliff; W._rim.grad = grad; }
     // the sea of mist
     { const cx = (G.X0 + G.X1) / 2, cz = (G.Z0 + G.Z1) / 2; const layer = (y, a, sc, sp, base) => { const mat = new THREE.ShaderMaterial({ uniforms: { time, rimSdf: { value: tex }, rimBox: { value: W._rim.box }, rimOn: { value: 1 } }, transparent: true, depthWrite: base, blending: base ? THREE.NormalBlending : THREE.AdditiveBlending, fog: false, toneMapped: false,
         vertexShader: `varying vec3 vRimW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vRimW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-        fragmentShader: RIM_NOISE + RIM_SD + `uniform float time; void main(){ float d = clamp(rimSD(vRimW.xz) / 160., 0., 1.); float n = rfbm(vRimW.xz * ${sc.toFixed(4)} + vec2(time * ${sp.toFixed(4)}, -time * ${(sp * .7).toFixed(4)}));
+        fragmentShader: RIM_NOISE + RIM_SD + `uniform float time; void main(){ float sdv = rimSD(vRimW.xz); if (sdv < 1.) discard; float d = clamp(sdv / 160., 0., 1.); float n = rfbm(vRimW.xz * ${sc.toFixed(4)} + vec2(time * ${sp.toFixed(4)}, -time * ${(sp * .7).toFixed(4)}));
           float near = exp(-d * 9.); float far = 1. - smoothstep(0., 1., d);
           ${base ? `vec3 c = mix(vec3(.025, .012, .05), vec3(.22, .06, .42), near * .9 + n * .25 * far) + vec3(.5, .15, .8) * pow(n, 3.) * near * 1.2; gl_FragColor = vec4(c, 1.);`
             : `float a = smoothstep(.35, .85, n) * (.25 + near) * ${a.toFixed(3)}; gl_FragColor = vec4(vec3(.55, .2, .95) * a, 1.);`} }` });
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(2600, 2600), mat); m.rotation.x = -Math.PI / 2; m.position.set(cx, yB + y, cz); m.frustumCulled = false; m.renderOrder = base ? 0 : 1; m.userData.noClimb = 1; root.add(m); return m; };
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(2600, 2600), mat); m.rotation.x = -Math.PI / 2; m.position.set(cx, yLow + y, cz); m.frustumCulled = false; m.renderOrder = base ? 0 : 1; m.userData.noClimb = 1; root.add(m); return m; };
       layer(-40, 1, .012, .006, true); if (!this.lite) { layer(-24, .55, .02, .012, false); layer(-12, .3, .03, .02, false); } }
     // the horizon curtain
-    { const mat = new THREE.ShaderMaterial({ uniforms: { time, yB: { value: yB } }, transparent: true, depthWrite: false, side: THREE.BackSide, fog: false, toneMapped: false,
+    { const mat = new THREE.ShaderMaterial({ uniforms: { time, yB: { value: yLow } }, transparent: true, depthWrite: false, side: THREE.BackSide, fog: false, toneMapped: false,
         vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
         fragmentShader: RIM_NOISE + `uniform float time, yB; varying vec3 vW; void main(){ float y = vW.y - yB; float a = 1. - smoothstep(-30., 150., y); float n = rfbm(vec2(atan(vW.z, vW.x) * 18. + time * .02, y * .03 - time * .05));
           vec3 c = mix(vec3(.03, .012, .06), vec3(.2, .06, .36), (1. - smoothstep(-40., 40., y)) * .5 + n * .35 * a); gl_FragColor = vec4(c, a * .8); }` });
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(560, 560, 320, 48, 1, true), mat); m.position.y = yB + 90; m.frustumCulled = false; m.renderOrder = -1; m.userData.noClimb = 1; root.add(m); W._rim.curtain = m; }
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(560, 560, 320, 48, 1, true), mat); m.position.y = yLow + 90; m.frustumCulled = false; m.renderOrder = -1; m.userData.noClimb = 1; root.add(m); W._rim.curtain = m; }
     // floating ruins: lumps of rock, slabs with the stumps of buildings, drifting and turning
     { const spot = (dmin, dmax) => { for (let t = 0; t < 40; t++) { const e = pts[(Math.random() * pts.length) | 0]; if (!e) return null; const a = rand(0, Math.PI * 2), r = rand(dmin, dmax); const x = e[0] + Math.cos(a) * r, z = e[1] + Math.sin(a) * r; const d = this.sd(W, x, z); if (d >= dmin * .6 && d < 99) return [x, z, d]; } return null; };
       const rockGeo = new THREE.IcosahedronGeometry(1, 0); { const p = rockGeo.attributes.position; for (let i = 0; i < p.count; i++) p.setXYZ(i, p.getX(i) * rand(.75, 1.2), p.getY(i) * rand(.55, .9), p.getZ(i) * rand(.75, 1.2)); rockGeo.computeVertexNormals(); }
@@ -15925,17 +15944,37 @@ const Rim = { MC: 2, lite: RIM_LITE,
           vA = smoothstep(0., .15, life) * (1. - smoothstep(.7, 1., life)); vec4 mv = modelViewMatrix * vec4(p, 1.); gl_Position = projectionMatrix * mv; gl_PointSize = min(40., (2. + seed * 4.) * 90. / max(1., -mv.z)); }`,
         fragmentShader: `varying float vA; void main(){ float d = length(gl_PointCoord - .5); float a = (1. - smoothstep(.0, .5, d)) * vA; gl_FragColor = vec4(vec3(.9, .45, 1.4) * a, 1.); }` });
       const m = new THREE.Points(geo, mat); m.frustumCulled = false; m.renderOrder = 4; m.userData.noClimb = 1; root.add(m); }
-    for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(W._rim.rockGeo, W._rim.fallMat); m.visible = false; m.castShadow = true; m.userData.noRim = 1; root.add(m); W._rim.crumble.push({ m, on: false, v: 0, w: new V3() }); }
+    const crackM = () => new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, .8, 3), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+    const lumpM = new THREE.MeshStandardMaterial({ color: 0x46404c, roughness: .95, flatShading: true, emissive: 0x1a0828, emissiveIntensity: .6 }); lumpM.userData.rim = 1;
+    for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(W._rim.rockGeo, lumpM); m.visible = false; m.castShadow = true; m.userData.noRim = 1; root.add(m);
+      const ck = new THREE.Mesh(new THREE.PlaneGeometry(1, .22).rotateX(-Math.PI / 2), crackM()); ck.visible = false; ck.renderOrder = 4; ck.userData.noRim = 1; root.add(ck);
+      const bits = []; for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(W._rim.rockGeo, lumpM); b.visible = false; b.userData.noRim = 1; root.add(b); bits.push({ m: b, v: new V3(), w: new V3() }); }
+      W._rim.crumble.push({ m, ck, bits, on: false, st: '', t: 0, v: 0, w: new V3(), o: [1, 0] }); }
     W._rim.ms = Math.round(performance.now() - t0); },
   // ---- per frame: the clock, the crumbling edge, the fall and the way back
   tick(dt) { const W = Game.world, pl = Game.player; if (!W) return; if (!W._rim) { if (RIM_WORLDS.has(W.id) && W._cgAdopted) { try { this.build(W); } catch (e) { console.warn('rim', e); W._rim = W._rim || { failed: 1 }; } } RimU.rimOn.value = 0; return; }
     const R = W._rim; if (R.failed) return; RimU.rimSdf.value = R.tex; RimU.rimBox.value.copy(R.box); RimU.rimOn.value = 1; R.t += dt; RimU.rimT.value = R.t; R.animate && R.animate(R.t);
     if (R.curtain) { R.curtain.position.x = camera.position.x; R.curtain.position.z = camera.position.z; }
-    for (const c of R.crumble) { if (!c.on) continue; c.v += 14 * dt; c.m.position.y -= c.v * dt; c.m.rotation.x += c.w.x * dt; c.m.rotation.z += c.w.z * dt; if (c.m.position.y < R.yB - 46) { c.on = false; c.m.visible = false; } }
+    for (const c of R.crumble) { if (!c.on) continue; c.t += dt; const P = c.m.position;
+      if (c.st === 'crack') { c.ck.material.opacity = Math.min(1, c.t * 2.2) * (.55 + .45 * Math.sin(c.t * 40)); c.ck.scale.x = c.len * Math.min(1, .3 + c.t * 1.4);
+        if (Math.random() < .25) SKFX.sparks(new V3(c.ck.position.x, c.ck.position.y + .05, c.ck.position.z), 2, new V3(0, 1, 0), { speed: 2, spread: .8, pal: PAL2.voidv, life: .5, grav: -3 });
+        if (c.t > .75) { c.st = 'tip'; c.t = 0; P.copy(c.p0); c.m.visible = true; Audio.play('stagger'); try { FX.smoke.emit(_a.set(P.x, P.y + .4, P.z), 14, { speed: 2.4, color: [.45, .4, .52], life: 1.4, size: .8, gravity: .05, grow: 1.8, alpha: .45 }); } catch (e) {} } }
+      else if (c.st === 'tip') { const k = Math.min(1, c.t / .45); c.m.rotation.set(c.r0.x + c.o[1] * k * .7, c.r0.y, c.r0.z - c.o[0] * k * .7); P.set(c.p0.x + c.o[0] * k * .8, c.p0.y - k * k * .6, c.p0.z + c.o[1] * k * .8); c.ck.material.opacity = 1 - k;
+        if (k >= 1) { c.st = 'fall'; c.t = 0; c.v = 1; c.ck.visible = false; for (const b of c.bits) { b.m.visible = true; b.m.position.copy(P).add(_a.set(rand(-.6, .6), rand(-.3, .3), rand(-.6, .6))); const s2 = c.s * rand(.18, .35); b.m.scale.set(s2, s2 * .8, s2); b.v.set(c.o[0] * rand(.5, 2), rand(-1, 1.5), c.o[1] * rand(.5, 2)); b.w.set(rand(-4, 4), rand(-4, 4), rand(-4, 4)); }
+          SKFX.sparks(new V3(P.x, P.y, P.z), 22, new V3(c.o[0], .3, c.o[1]), { speed: 5, spread: .9, pal: [[.9, .85, 1], [.55, .5, .62], [.3, .26, .35]], life: 1.2, grav: -14 }); } }
+      else { c.v += 15 * dt; P.y -= c.v * dt; P.x += c.o[0] * 1.1 * dt; P.z += c.o[1] * 1.1 * dt; c.m.rotation.x += c.w.x * dt; c.m.rotation.z += c.w.z * dt; if (Math.random() < .5) SKFX.sparks(new V3(P.x, P.y + c.s * .4, P.z), 1, null, { speed: 1, spread: .5, pal: PAL2.voidv, life: .7, grav: 2 });
+        for (const b of c.bits) { b.v.y -= 15 * dt; b.m.position.addScaledVector(b.v, dt); b.m.rotation.x += b.w.x * dt; b.m.rotation.y += b.w.y * dt; }
+        if (P.y < R.yLow - 60) { c.on = false; c.m.visible = false; for (const b of c.bits) b.m.visible = false; } } }
     if (!pl || Game.state !== 'playing') return;
-    R.cd -= dt; if (R.cd <= 0) { R.cd = rand(1.8, 4.5); let best = null; for (let k = 0; k < 24; k++) { const e = R.pts[(Math.random() * R.pts.length) | 0]; if (!e) break; const d = Math.hypot(e[0] - pl.pos.x, e[1] - pl.pos.z); if (d > 12 && d < 70 && (!best || d < best[3])) best = [e[0], e[1], e[2], d]; }
-      const c = R.crumble.find(c => !c.on); if (best && c) { const s = rand(.8, 2.2); c.on = true; c.v = rand(0, 2); c.m.visible = true; c.m.scale.set(s * 1.3, s, s * 1.2); c.m.position.set(best[0], best[2] - s * .4, best[1]); c.w.set(rand(-1.5, 1.5), 0, rand(-1.5, 1.5));
-        try { FX.smoke.emit(_a.set(best[0], best[2] + .3, best[1]), 10, { speed: 2, color: [.42, .36, .5], life: 1.2, size: .6, gravity: .1, grow: 1.6, alpha: .4 }); } catch (e) {} if (best[3] < 35) Audio.play('stagger'); } }
+    // now and then a lump of the edge near you cracks, tips and breaks away; grit trickles off the lip all the time
+    { let near = null, nd = 1e9; const cf = new V3(); camera.getWorldDirection(cf);
+      R.cd -= dt; R.pt = (R.pt || 0) - dt;
+      if (R.cd <= 0 || R.pt <= 0) { const cand = []; for (let k = 0; k < 60; k++) { const e = R.pts[(Math.random() * R.pts.length) | 0]; if (!e) break; const dx = e[0] - pl.pos.x, dz = e[1] - pl.pos.z, d = Math.hypot(dx, dz); if (d < nd) { nd = d; near = e; } if (d > 5 && d < 40 && (dx * cf.x + dz * cf.z) / (d || 1) > .15) cand.push([e, d]); }
+        if (R.pt <= 0) { R.pt = .3; if (near && nd < 30) { const g = R.grad(near[0], near[1]); SKFX.sparks(new V3(near[0] + g[0] * .4, near[2] + .05, near[1] + g[1] * .4), 2, new V3(g[0], -.2, g[1]), { speed: 1.4, spread: .6, pal: [[.6, .56, .66], [.4, .36, .45], [.25, .2, .3]], life: 1.6, grav: -12 }); } }
+        if (R.cd <= 0) { R.cd = rand(1.2, 3.2); cand.sort((a, b) => a[1] - b[1]); const pick = cand[Math.min(cand.length - 1, (Math.random() * 4) | 0)]; const c = R.crumble.find(c => !c.on);
+          if (pick && c) { const e = pick[0]; const g = R.grad(e[0], e[1]); const s = rand(1.1, 2.6); c.on = true; c.st = 'crack'; c.t = 0; c.s = s; c.o = g; c.len = s * 1.6;
+            c.p0 = new V3(e[0] - g[0] * s * .25, e[2] - s * .35, e[1] - g[1] * s * .25); c.r0 = new THREE.Euler(rand(-.3, .3), rand(0, 6.28), rand(-.3, .3)); c.m.scale.set(s * 1.3, s, s * 1.2); c.m.rotation.copy(c.r0); c.m.visible = false; c.w.set(rand(-2, 2), 0, rand(-2, 2));
+            c.ck.visible = true; c.ck.position.set(e[0] - g[0] * s * .5, e[2] + .06, e[1] - g[1] * s * .5); c.ck.rotation.y = Math.atan2(g[0], g[1]); c.ck.scale.set(.3, 1, 1); c.ck.material.opacity = 0; } } } }
     // the fall: remember the ground you stood on; if you go over, the Void throws you back there
     const Y = (pl.gy || 0) + (pl.py || 0), now = Game.time; const grounded = (pl.py || 0) < .05 && (pl.gy || 0) > -500 && !pl.climb && !pl.dead;
     R.ht = (R.ht || 0) - dt; if (grounded && R.ht <= 0) { R.ht = .2; if (this.sd(W, pl.pos.x, pl.pos.z) < -1.2) { R.hist.push({ x: pl.pos.x, z: pl.pos.z, y: pl.gy, yaw: pl.yaw, t: now }); if (R.hist.length > 20) R.hist.shift(); }
