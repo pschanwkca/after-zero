@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.15</small>
+        <small>Rift Hunter field prototype · Build 3.17</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1432,7 +1432,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.15":"裂隙獵人 實地原型 · Build 2.8","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.17":"裂隙獵人 實地原型 · Build 3.17","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -15131,6 +15131,199 @@ html.touch #hud .obj{top:calc(env(safe-area-inset-top,0px) + 140px)!important;ma
   setInterval(() => { const b = document.querySelector('#tFan .tb-lock'); if (b) { let on = false; try { on = !!(Game.player && (Game.player.lock || (typeof Cam !== 'undefined' && Cam.lock))); } catch (e) {} b.classList.toggle('on', on); }
     const z = $('tStickZone'); if (z) { let held = false; try { held = !!(typeof Touch !== 'undefined' && Touch.stickId != null); } catch (e) {} z.classList.toggle('on', held); } }, 200);
 }
+/* =====================================================================
+   BUILD 3.17 · EXPLORE FIRST, THEN THE APEX
+   1. Apex Seals. The Furnace Core Beast and the Ash Bastion no longer wake the moment you walk up the trench / into the
+      caldera. Each sleeps inside a veil held by three Apex Seals standing in the world's far districts (the ones you
+      would otherwise never visit). Every seal has its wardens; beat them, break the seal, and the veil thins. When the
+      third seal falls the veil drops and the apex is yours to hunt. The task line and the guide point at the seals.
+   2. Rift Anchors stand where you can reach them. Every anchor is re-seated on the real walkable surface once a world's
+      climb grid exists: the Rift Spire's anchor now stands on the floating rock instead of under it, the Citadel of Wards'
+      on the citadel, Slag Harbor's on the harbor floor, and the Frozen Observatory's beside the dome, not inside it.
+      Fast travel lands you on the right level.
+   3. Climbing only when you mean it: you have to push into a wall (not brush past it) for a moment before you grab it.
+   4. Rift Blooms: in every world (the Void included) a white rift flower opens now and then somewhere you have been.
+      Stand your ground through two waves and it closes, leaving shards, scrap and experience.
+   ===================================================================== */
+window.__AZtw = { TOWERS, Towers, Climb };
+const Flow = {
+  fix: {},
+  SEALS: {
+    mech: { c: { x: 0, z: 40 }, R: 12.5, col: [2.4, .95, .24], name: 'the Furnace Core Beast',
+      at: [{ x: -54, z: 12, n: 'Vent Fields' }, { x: 58, z: 30, n: 'Cooling Towers' }, { x: -12, z: 90, n: 'Gear Graveyard' }] },
+    demon: { c: { x: 0, z: 12 }, R: 15, col: [2.6, .42, .16], name: 'the Ash Bastion',
+      at: [{ x: -84, z: 8, n: 'Ash Plains' }, { x: 10, z: 88, n: 'Chain Altar' }, { x: 84, z: -8, n: 'Lava Fields' }] } },
+  key(w, i) { return 'aseal_' + w + i; },
+  F() { return Hunt.flags || {}; },
+  broken(w) { let n = 0; for (let i = 0; i < 3; i++) if (this.F()[this.key(w, i)]) n++; return n; },
+  sealed(w) { const S = this.SEALS[w]; if (!S) return false; const F = this.F(); if (F['clear_' + w] || F['unseal_' + w]) return false; return this.broken(w) < 3; },
+  gh(W, x, z) { return W._cg ? Climb.gh(W, x, z) : W.heightAt(x, z); },
+  // a flat, open spot: the ring around it is ground (no drop, no wall sticking up through it)
+  test(W, x, z, r) { const s = []; for (let k = 0; k < 12; k++) { const a = k / 12 * 6.2832; const h = this.gh(W, x + Math.cos(a) * r, z + Math.sin(a) * r); if (h < -100) return null; s.push(h); }
+    s.sort((a, b) => a - b); const med = (s[5] + s[6]) / 2; if (s[11] - s[0] > 2.6 || s[11] > med + 1.6) return null; if (this.gh(W, x, z) > med + 7) return null; if (W.pBlock && W.pBlock(x, z)) return null; return med; },
+  find(W, x, z, r, pref) { const h = this.test(W, x, z, r); if (h !== null) return { x, z, y: h };
+    for (let d = 2; d <= 20; d += 1.5) for (let k = 0; k < 16; k++) { const a = k / 16 * 6.2832 + d; const px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d; const q = this.test(W, px, pz, r); if (q !== null && (pref == null || Math.abs(q - pref) < 6)) return { x: px, z: pz, y: q }; }
+    return null; },
+  // ---- 2 · anchors on real ground
+  seatTowers(W) { if (!W._towers || !W._cg) return; for (const o of W._towers) { const T = o.T; const a = (T._at0 || T.at)(W); const f = this.find(W, a.x, a.z, 2.6, o.y); if (!f) continue;
+      if (Math.hypot(f.x - a.x, f.z - a.z) < .1 && Math.abs(f.y - o.y) < .35) continue;
+      o.g.position.set(f.x, f.y - .05, f.z); o.y = f.y; const c = W.colliders.find(c => c.name === 'tower' && Math.abs(c.x - a.x) < .01 && Math.abs(c.z - a.z) < .01); if (c) { c.x = f.x; c.z = f.z; }
+      const d = W.interactDefs.find(d => d.id === 'tw_' + T.id); if (d) { const fw = fwd(a.yaw); d.pos.set(f.x + fw.x * 2.4, 0, f.z + fw.z * 2.4); d.y = f.y; }
+      this.fix[T.id] = { x: f.x, z: f.z, y: f.y }; } },
+  // ---- 1 · the seals
+  mats(col) { const c = new THREE.Color(...col); return { stone: new THREE.MeshStandardMaterial({ color: 0x1c1d22, roughness: .6, metalness: .35, flatShading: true }),
+      glow: new THREE.MeshBasicMaterial({ color: c.clone() }), dim: new THREE.MeshBasicMaterial({ color: new THREE.Color(.12, .11, .1) }),
+      add: o => new THREE.MeshBasicMaterial({ color: c.clone(), transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false }) }; },
+  buildSeals(W) { const S = this.SEALS[W.id]; if (!S || W._seals) return; W._seals = []; const M = this.mats(S.col); const F = this.F();
+    const ro = m => { m.renderOrder = 1; m.userData.noClimb = 1; return m; };
+    S.at.forEach((p, i) => { const key = this.key(W.id, i); const f = this.find(W, p.x, p.z, 3, null) || { x: p.x, z: p.z, y: this.gh(W, p.x, p.z) };
+      const g = new THREE.Group(); g.position.set(f.x, f.y - .05, f.z); W.group.add(g);
+      const base = ro(new THREE.Mesh(new THREE.CylinderGeometry(1.7, 2, .5, 6), M.stone)); base.position.y = .25; base.castShadow = base.receiveShadow = true; g.add(base);
+      const ob = ro(new THREE.Mesh(new THREE.CylinderGeometry(.32, .72, 5.6, 4), M.stone)); ob.position.y = 3.2; ob.rotation.y = Math.PI / 4; ob.castShadow = true; g.add(ob);
+      const bands = []; for (let k = 0; k < 3; k++) { const y = 1.6 + k * 1.35, r = .7 - k * .12; const b = ro(new THREE.Mesh(new THREE.CylinderGeometry(r + .04, r + .06, .1, 4, 1, true), M.glow)); b.position.y = y; b.rotation.y = Math.PI / 4; g.add(b); bands.push(b); }
+      const core = ro(new THREE.Mesh(new THREE.OctahedronGeometry(.55, 0), M.glow)); core.position.y = 7; g.add(core);
+      const rings = []; for (let k = 0; k < 3; k++) { const r = ro(new THREE.Mesh(new THREE.TorusGeometry(1 + k * .3, .035, 6, 56), M.add(.85))); r.position.y = 7; g.add(r); rings.push(r); }
+      const sig = ro(new THREE.Mesh(new THREE.CircleGeometry(4.2, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: TEX.sigil, color: new THREE.Color(...S.col).multiplyScalar(.6), transparent: true, opacity: .55, blending: THREE.AdditiveBlending, depthWrite: false }))); sig.position.y = .53; g.add(sig);
+      const beam = ro(new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, 110, 8, 1, true), M.add(.32))); beam.position.y = 62; g.add(beam);
+      W.colliders.push({ x: f.x, z: f.z, r: 1.9, solid: true, name: 'seal' });
+      const fw = { x: f.x - S.c.x, z: f.z - S.c.z }; const fl = Math.hypot(fw.x, fw.z) || 1; // stand on the side that faces the apex
+      W.interactDefs.push({ id: key, kind: 'aseal', w: W.id, i, pos: new V3(f.x - fw.x / fl * 2.9, 0, f.z - fw.z / fl * 2.9), y: f.y, r: 2.8, label: 'Break the seal', sub: 'Apex Seal · ' + p.n, hold: 1 });
+      const s = { i, key, n: p.n, g, ob, bands, core, rings, sig, beam, pos: new V3(f.x, f.y, f.z), k: F[key] ? 0 : 1, broken: () => !!this.F()[key] || !!this.F()['clear_' + W.id] };
+      W._seals.push(s);
+      // wardens: three hounds round the seal (the kin rules turn some into brutes, spitters, swarmers)
+      let put = 0; for (let k = 0; k < 10 && put < 3; k++) { const a = k / 10 * 6.2832 + i; const x = f.x + Math.cos(a) * 5.5, z = f.z + Math.sin(a) * 5.5; const h = this.gh(W, x, z); if (h < -100 || Math.abs(h - f.y) > 2.5) continue;
+        (W.hounds || (W.hounds = [])).push({ x, z, pack: 'SEAL_' + key, aggro: 13, leash: 24, elite: put === 0 }); put++; } });
+    // the veil round the sleeping apex
+    { const y = this.gh(W, S.c.x, S.c.z); const c = new THREE.Color(...S.col);
+      const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false,
+        uniforms: { t: { value: 0 }, col: { value: c }, op: { value: 1 } },
+        vertexShader: `varying vec2 vU;void main(){vU=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+        fragmentShader: `varying vec2 vU;uniform float t,op;uniform vec3 col;void main(){float a=vU.x*6.2832;float s=.5+.5*sin(a*36.+t*1.7)*sin(a*11.-t*.9);float w=pow(1.-vU.y,1.6);float band=smoothstep(.0,.04,vU.y)*(.55+.45*s)+.6*exp(-vU.y*30.);gl_FragColor=vec4(col*.16*band*w*op,1.);}` });
+      const veil = new THREE.Mesh(new THREE.CylinderGeometry(S.R, S.R, 18, 96, 1, true), mat); veil.position.set(S.c.x, y + 9 - .2, S.c.z); veil.renderOrder = 2; veil.userData.noClimb = 1; W.group.add(veil);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(S.R - .25, S.R + .25, 96).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: c.clone().multiplyScalar(.5), transparent: true, opacity: .7, blending: THREE.AdditiveBlending, depthWrite: false })); ring.position.set(S.c.x, y + .08, S.c.z); ring.renderOrder = 2; ring.userData.noClimb = 1; W.group.add(ring);
+      W._veil = { veil, ring, mat, y, k: this.sealed(W.id) ? 1 : 0 }; veil.visible = ring.visible = W._veil.k > .01; } },
+  breakSeal(it) { const W = Game.world; const F = this.F(); if (F[it.id]) return; const s = (W._seals || []).find(s => s.key === it.id); if (!s) return;
+    const guards = Hounds.list.filter(h => h.alive && h.state !== 'dead' && h.pack === 'SEAL_' + it.id && hdist(h.pos, s.pos) < 34);
+    if (guards.length) { Audio.play('deny'); UI.notify(I18N.t('Its wardens still stand · defeat them first'), 'warn'); for (const h of guards) Hounds.alert(h); return; }
+    F[it.id] = 1; const n = this.broken(W.id); const p = s.pos;
+    try { FX.shock(_a.set(p.x, p.y + 7, p.z), 6, this.SEALS[W.id].col, .7); FX.shock(_a.set(p.x, p.y + .3, p.z), 9, this.SEALS[W.id].col, .9); FX.sparks.emit(_a.set(p.x, p.y + 7, p.z), 90, { speed: 7, color: this.SEALS[W.id].col, life: .9, size: .09, gravity: -6, up: 2 }); } catch (e) {}
+    Audio.play('riftRelease'); Audio.play('perfect'); Game.shake(.35); try { Progress.gain(160, 'seal'); } catch (e) {}
+    Hunt.banner(I18N.t('Apex Seal'), n + ' / 3', I18N.t(s.n) + ' · ' + I18N.t(n < 3 ? 'the veil thins' : 'the veil falls'), [], 3);
+    if (n >= 3) this.unseal(W); else Story.after && Story.after(2.4, () => Game.radio('seal_' + n)); Hunt.refresh(); Save.auto(); },
+  unseal(W) { const S = this.SEALS[W.id]; this.F()['unseal_' + W.id] = 1; W._veilDrop = 1;
+    setTimeout(() => { try { const y = W._veil ? W._veil.y : 0; for (let k = 0; k < 3; k++) setTimeout(() => FX.shock(_a.set(S.c.x, y + .4 + k * 3, S.c.z), S.R + 3 + k * 2, S.col, 1), k * 220); Game.shake(.5); Audio.play('roar', { dur: 2.4 });
+      Hunt.banner(I18N.t('The seals are broken'), I18N.t(S.name).toUpperCase(), I18N.t('It is waking · the way to its nest is open'), [], 4); Game.radio('seal_open'); Hunt.refresh(); } catch (e) {} }, 3200); },
+  // ---- per frame
+  tick(dt) { const W = Game.world, pl = Game.player; if (!W || !pl) return; const t = Game.time;
+    if (this._W !== W) { this._W = W; this.wT = 0; }
+    // anchors: a fast-travel arrival lands on the anchor's real level
+    if (this.pend && performance.now() - this.pend.t > 6000) this.pend = null;
+    if (this.pend && Game.state === 'playing') { const T = TOWERS.find(q => q.id === this.pend.id); const f = this.fix[this.pend.id];
+      if (T && T.world === W.id) { if (f) { const a = T.at(W); const fw = fwd(a.yaw); const x = f.x + fw.x * 2.9, z = f.z + fw.z * 2.9; if (Math.abs(Climb.Y(pl) - f.y) > 1.2 || hdist(pl.pos, { x, z }) > 2) { pl.pos.x = x; pl.pos.z = z; pl.gy = f.y; pl.py = 0; pl.vy = 0; Climb.refY = f.y; Climb.lp = { x, z, y: f.y, gy: f.y }; } }
+        this.pend = null; } }
+    const S = this.SEALS[W.id]; if (!S || !W._seals) return;
+    const sealed = this.sealed(W.id);
+    for (const s of W._seals) { const on = !s.broken(); s.k = damp(s.k, on ? 1 : 0, 2.2, dt); const k = s.k;
+      s.core.visible = k > .05; s.core.rotation.y = t * 1.1; s.core.position.y = 7 + Math.sin(t * 1.4 + s.i) * .18; s.core.scale.setScalar(.4 + .6 * k);
+      s.rings.forEach((r, j) => { r.visible = k > .05; r.rotation.set(Math.PI / 2 + Math.sin(t * (.6 + j * .2) + j) * .5, t * (.5 + j * .3) * (j % 2 ? -1 : 1), 0); r.material.opacity = .85 * k; });
+      s.beam.material.opacity = .32 * k * (.85 + .15 * Math.sin(t * 2 + s.i)); s.beam.visible = k > .02; s.sig.material.opacity = .55 * k; s.sig.rotation.y = t * .12;
+      if (!on && s.bands[0].material !== this._dim) { this._dim = this._dim || new THREE.MeshBasicMaterial({ color: new THREE.Color(.14, .12, .11) }); for (const b of s.bands) b.material = this._dim; } }
+    const V = W._veil; if (V) { V.k = damp(V.k, sealed ? 1 : 0, sealed ? 3 : .9, dt); V.mat.uniforms.t.value = t; V.mat.uniforms.op.value = V.k; V.ring.material.opacity = .7 * V.k; V.veil.visible = V.ring.visible = V.k > .01;
+      // the veil is a wall while it stands
+      if (sealed && Game.state === 'playing' && !pl.dead) { const dx = pl.pos.x - S.c.x, dz = pl.pos.z - S.c.z, d = Math.hypot(dx, dz) || 1e-3, R = S.R + .7;
+        if (d < R && Climb.Y(pl) < V.y + 14) { pl.pos.x = S.c.x + dx / d * R; pl.pos.z = S.c.z + dz / d * R; if (pl.climb) Climb.release(pl, 1.5);
+          if (!this.denyT || t > this.denyT) { this.denyT = t + 4; Audio.play('deny'); UI.notify(I18N.t('Sealed · break the three Apex Seals first'), 'warn'); } } } }
+    // first time in a sealed world: the radio explains
+    if (sealed && Game.state === 'playing') { this.wT += dt; const F = this.F(); if (this.wT > 7 && !F['sealtip_' + W.id]) { F['sealtip_' + W.id] = 1; Game.radio('seal_' + W.id); } } }
+};
+window.__AZflow = Flow;
+// anchors keep their seated place for travel; arrivals are corrected once the world is up
+for (const T of TOWERS) { const at0 = T.at; T._at0 = at0; T.at = W => { const a = at0(W); const f = Flow.fix[T.id]; return f ? { x: f.x, z: f.z, yaw: a.yaw } : a; }; }
+{ const sp0 = Towers.spawn.bind(Towers); Towers.spawn = function (T, W) { Flow.pend = { id: T.id, t: performance.now() }; return sp0(T, W); }; }
+// once a world's climb grid exists: seat the anchors, raise the seals (before the static batcher merges anything)
+{ const g0 = Climb.grid.bind(Climb); Climb.grid = function (W) { const had = !!W._cg; const r = g0(W); if (!had && W._cg) { try { Flow.seatTowers(W); } catch (e) { console.warn('seat', e); } try { Flow.buildSeals(W); } catch (e) { console.warn('seals', e); } } return r; }; }
+// the demon caldera's first survey marker stood where the apex now sleeps behind its veil
+try { THEMES.demon.survey[0] = [-20, -16]; } catch (e) {}
+// the apexes sleep while their seals stand
+for (const C of [FurnaceBeast, AshBastion]) { const w0 = C.prototype.wake; C.prototype.wake = function () { const W = Game.world; if (W && Flow.sealed(W.id) && this === Game.boss) return; return w0.call(this); }; }
+// wardens of a broken seal do not return
+{ const sp0 = Hounds.spawn.bind(Hounds); Hounds.spawn = function (defs) { const F = Hunt.flags || {}; return sp0((defs || []).filter(d => !(d.pack && String(d.pack).startsWith('SEAL_') && F[String(d.pack).slice(5)]))); }; }
+// interaction, task line, guide marker
+{ const sv = Survey.visible.bind(Survey); Survey.visible = function (it) { if (it.kind === 'aseal') { const F = Hunt.flags || {}; return !F[it.id] && !F['clear_' + it.w]; } return sv(it); }; }
+{ const hu = Hunt.use.bind(Hunt); Hunt.use = function (it) { if (it && it.kind === 'aseal') { Flow.breakSeal(it); return; } return hu(it); }; }
+{ const rf = Hunt.refresh.bind(Hunt); Hunt.refresh = function () { rf(); try { const W = Game.world, E = this.el; if (!W || !E || !Flow.sealed(W.id)) return; const n = Flow.broken(W.id);
+    E.task.textContent = I18N.t('Break the Apex Seals'); E.sub.innerHTML = `<span>${I18N.t('Apex Seals')} ${n}/3</span><span>${I18N.t(W.id === 'mech' ? 'Three seals in the far districts keep the Furnace asleep' : 'Three seals in the far districts keep the Bastion asleep')}</span>`; } catch (e) {} }; }
+{ const tp = Hunt.targetPos.bind(Hunt); Hunt.targetPos = function () { const W = Game.world; if (W && W._seals && Flow.sealed(W.id)) { const pl = Game.player; let b = null, bd = 1e9; for (const s of W._seals) { if (s.broken()) continue; const d = hdist(pl.pos, s.pos); if (d < bd) { bd = d; b = s.pos; } } if (b) return b; } return tp(); }; }
+// ---- 3 · climbing only on purpose
+{ const st0 = Climb.start.bind(Climb); Climb.start = function (pl, n, Y) { if (pl && !pl.isAI && n) { const air = (pl.py || 0) > .05; let dot = -1; try { const d = pl.inputDir(Cam); if (d.lengthSq() > .01) { d.normalize(); dot = n.x * d.x + n.z * d.z; } } catch (e) {}
+      const now = performance.now(); if (air) { if (dot > -.35) return; } else { if (dot > -.62) { this._tries = 0; return; } this._tries = (now - (this._tt || 0) < 300) ? (this._tries || 0) + 1 : 1; this._tt = now; if (this._tries < 2) return; } this._tries = 0; }
+    return st0(pl, n, Y); }; }
+if (typeof Float !== 'undefined' && Float.climb) { const fc0 = Float.climb.bind(Float); Float.climb = function (pl, b) { const air = (pl.py || 0) > .05; if (!air && b && b.nW) { if ((this._push || 0) < .34) return; let into = 1; try { const d = pl.inputDir(Cam); if (d.lengthSq() > .01) { d.normalize(); into = -(d.x * b.nW.x + d.z * b.nW.z); } } catch (e) {} if (into < .6) return; } return fc0(pl, b); }; }
+
+// ---- 4 · Rift Blooms
+const Bloom = { cd: 75, on: null,
+  okG(W, x, z) { if (typeof Abyss !== 'undefined' && Abyss.on(W)) { Abyss.busy = true; let h; try { h = W.heightAt(x, z); } finally { Abyss.busy = false; } return h > -500 && Abyss.floor(W, x, z, h) ? h : null; }
+    const h = W.heightAt(x, z); if (h < -100) return null; if (W.pBlock && W.pBlock(x, z)) return null; return h; },
+  allowed(W) { const F = Hunt.flags || {}; if (!W || ['sanctum', 'vsing', 'vnexus'].includes(W.id)) return false; if (W.id === 'city' && !(Hunt.done || F.nexus || F.core_city)) return false;
+    if (typeof Cine !== 'undefined' && Cine.on) return false; if (Story.cine) return false; return true; },
+  site(W) { const pl = Game.player; const B = Game.boss; const S = Flow.SEALS[W.id]; const L = [];
+    for (const d of W.hounds || []) { if (d.pack && /^(S|T_|SEAL_|E_)/.test(String(d.pack))) continue; const r = Math.hypot(d.x - pl.pos.x, d.z - pl.pos.z); if (r < 32 || r > 120) continue;
+      if (B && B.alive && !B.hidden && hdist(B.pos, d) < 40) continue; if (S && Math.hypot(d.x - S.c.x, d.z - S.c.z) < S.R + 10) continue; const h = this.okG(W, d.x, d.z); if (h === null) continue; L.push({ x: d.x, z: d.z, y: h }); }
+    return L.length ? L[Math.floor(Math.random() * L.length)] : null; },
+  make(W, p) { const g = new THREE.Group(); g.position.set(p.x, p.y, p.z); scene.add(g); const add = (geo, op, c = [2.6, 2.6, 3]) => { const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(...c), transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); g.add(m); return m; };
+    const tear = []; for (let k = 0; k < 3; k++) { const m = add(new THREE.PlaneGeometry(k ? 1.5 : 3.2, k ? 5.6 : 3.2), k ? .95 : .5); m.material.map = glowTexture(); m.position.y = 3; m.rotation.y = k * Math.PI / 2; tear.push(m); }
+    const petals = []; for (let k = 0; k < 7; k++) { const geo = new THREE.TorusGeometry(2.2, .035, 5, 48, 2.2); geo.rotateZ(-1.35); const p = new THREE.Group(); p.position.y = 3.3; g.add(p); const m = add(geo, .75, [2.2, 2.3, 3]); g.remove(m); p.add(m); m.position.x = -.48; p.rotation.y = k / 7 * 6.2832; petals.push(p); }
+    const pool = add(new THREE.CircleGeometry(5, 48).rotateX(-Math.PI / 2), .4); pool.material.map = glowTexture(); pool.position.y = .06;
+    const ring = add(new THREE.RingGeometry(4.6, 4.8, 64).rotateX(-Math.PI / 2), .6); ring.position.y = .08;
+    const beam = add(new THREE.CylinderGeometry(.12, .12, 120, 8, 1, true), .26); beam.position.y = 62;
+    return { g, tear, petals, pool, ring, beam }; },
+  open(W) { const p = this.site(W); if (!p) { this.cd = 30; return; } this.on = { W, p, V: this.make(W, p), st: 'open', life: 210, wave: 0, hs: [], k: 0, t: 0 };
+    Audio.play('portal'); UI.notify(I18N.t('A Rift Bloom has opened · follow the white light'), 'rare'); },
+  wave(n) { const B = this.on, W = B.W; const hs = []; const cnt = n === 1 ? 3 : 4;
+    for (let i = 0, k = 0; i < cnt && k < 24; k++) { const a = k / 24 * 6.2832 * 3 + n; const r = 6 + (k % 3); const x = B.p.x + Math.cos(a) * r, z = B.p.z + Math.sin(a) * r; if (this.okG(W, x, z) === null) continue;
+      const h = Hounds.make({ pack: 'BLOOM', x, z, aggro: 60, leash: 80, elite: n === 2 && i === 0 }); h.bloom = true; Hounds.list.push(h); hs.push(h); i++;
+      try { FX.shock(_a.set(x, (this.okG(W, x, z) || 0) + .3, z), 2.4, [2.4, 2.4, 3], .4); } catch (e) {} }
+    B.hs = hs; hs.forEach(h => Hounds.alert(h)); Audio.play('growl'); Game.shake(.2); },
+  end(win) { const B = this.on; if (!B) return; B.st = 'fade'; B.fade = 1;
+    if (win) { const p = B.p; try { FX.shock(_a.set(p.x, p.y + 2.6, p.z), 7, [2.6, 2.6, 3], .8); FX.sparks.emit(_a.set(p.x, p.y + 2.6, p.z), 80, { speed: 6, color: [2.4, 2.4, 3], life: .8, size: .08, gravity: -5, up: 2 }); } catch (e) {}
+      Audio.play('victory'); Hunt.banner(I18N.t('Rift Bloom'), I18N.t('BLOOM CLOSED'), I18N.t('shards and scrap gathered'), [[Hunt.ITEMS.shard || 'Shard', 2], [Hunt.ITEMS.scrap || 'Scrap', 3]], 3.4);
+      Hunt.give('shard', 2, true); Hunt.give('scrap', 3, true); try { Progress.gain(140, 'bloom'); } catch (e) {} Save.auto(); }
+    this.cd = 150 + Math.random() * 100; },
+  kill() { const B = this.on; if (!B) return; scene.remove(B.V.g); B.V.g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); this.on = null; },
+  tick(dt) { const W = Game.world, pl = Game.player; const B = this.on;
+    if (B && B.W !== W) { this.kill(); this.cd = 60; return; }
+    if (!W || !pl || Game.state !== 'playing') return;
+    if (!B) { if (!this.allowed(W)) return; if (Climb.fighting && Climb.fighting(pl)) return; this.cd -= dt; if (this.cd <= 0) this.open(W); return; }
+    B.t += dt; const V = B.V, t = Game.time, p = B.p; const tgt = B.st === 'fade' ? 0 : 1; B.k = damp(B.k, tgt, B.st === 'fade' ? 1.4 : 2, dt); const k = B.k;
+    V.tear.forEach((m, i) => { m.material.opacity = (i ? .95 : .5) * k * (.75 + .25 * Math.sin(t * 6 + i)); m.scale.set(.6 + .4 * k + .08 * Math.sin(t * 3), Math.max(.01, k), 1); if (i) m.rotation.y = i * Math.PI / 2 + t * .4; else m.quaternion.copy(camera.quaternion); });
+    V.petals.forEach((p, i) => { p.rotation.set(0, i / 7 * 6.2832 + t * .35, 0); const m = p.children[0]; m.material.opacity = .75 * k; m.position.x = -.48 - .5 * (1 - k) + (B.st === 'wave' ? .12 * Math.sin(t * 8 + i) : .08 * Math.sin(t * 1.5 + i)); p.scale.setScalar(.5 + .5 * k); });
+    V.pool.material.opacity = .4 * k; V.ring.material.opacity = .6 * k * (.7 + .3 * Math.sin(t * 2)); V.ring.scale.setScalar(1 + .04 * Math.sin(t * 3)); V.beam.material.opacity = .26 * k;
+    if (B.st === 'open') { B.life -= dt; if (B.life <= 0) { UI.notify(I18N.t('The bloom withers'), ''); this.end(false); return; }
+      if (hdist(pl.pos, p) < 10 && !pl.dead) { B.st = 'wave'; B.wave = 1; Hunt.banner(I18N.t('Rift Bloom'), I18N.t('HOLD THE BLOOM'), I18N.t('Two waves · it closes when the last one falls'), [], 2.6); this.wave(1); } return; }
+    if (B.st === 'wave') { const left = B.hs.filter(h => h.alive && h.state !== 'dead').length; Hunt.hint(`<span>${I18N.t('Rift Bloom')} · ${I18N.t('wave')} ${B.wave}/2 · ${left} ${I18N.t('left')}</span>`, 1);
+      if (pl.dead) { for (const h of B.hs) { const i = Hounds.list.indexOf(h); if (i >= 0) { scene.remove(h.R.root); Hounds.list.splice(i, 1); } } this.end(false); return; }
+      if (left === 0) { if (B.wave === 1) { B.wave = 2; B.pause = 1.6; B.st = 'gap'; } else this.end(true); } return; }
+    if (B.st === 'gap') { B.pause -= dt; if (B.pause <= 0) { B.st = 'wave'; this.wave(2); } return; }
+    if (B.st === 'fade' && k < .02) this.kill(); } };
+window.__AZbloom = Bloom; window.__AZT = THREE;
+setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); const dt = Math.min(.1, rdt || 0); try { Flow.tick(dt); } catch (e) { console.warn('flow', e); } try { Bloom.tick(dt); } catch (e) { console.warn('bloom', e); } }; }, 0);
+Object.assign(RADIO, {
+  seal_mech: ['The Furnace is down there, under a veil. Three seals hold it asleep: the Vent Fields, the Cooling Towers, the Gear Graveyard. Each one has its keepers.'],
+  seal_demon: ['The Bastion sleeps in the caldera behind a veil. Three seals keep it there: out on the Ash Plains, up at the Chain Altar, across the Lava Fields. They are guarded.'],
+  seal_1: ['One seal down. The veil is thinner already.'], seal_2: ['Two. One more and it wakes. Be ready when it does.'],
+  seal_open: ['The veil is down. It knows you are here now. Go to it, before it comes to you.'] });
+Object.assign(ZH_DICT, {
+  'Break the seal': '打破封印', 'Apex Seal': '頂點封印', 'Apex Seals': '頂點封印', 'Break the Apex Seals': '打破三個頂點封印',
+  'Three seals in the far districts keep the Furnace asleep': '遠方三個區域嘅封印令熔爐核心獸沉睡', 'Three seals in the far districts keep the Bastion asleep': '遠方三個區域嘅封印令灰燼要塞魔沉睡',
+  'Its wardens still stand · defeat them first': '佢嘅守衛仲企喺度 · 先打倒佢哋', 'Sealed · break the three Apex Seals first': '已封印 · 先打破三個頂點封印',
+  'the veil thins': '帷幕變薄', 'the veil falls': '帷幕落下', 'The seals are broken': '封印已經打破', 'It is waking · the way to its nest is open': '佢醒緊 · 去巢穴嘅路已經打開',
+  'the Furnace Core Beast': '熔爐核心獸', 'the Ash Bastion': '灰燼要塞魔', 'Vent Fields': '蒸氣原', 'Ash Plains': '灰燼平原', 'Lava Fields': '熔岩原',
+  'A Rift Bloom has opened · follow the white light': '裂隙之花開咗 · 跟住白光去', 'Rift Bloom': '裂隙之花', 'HOLD THE BLOOM': '守住裂隙之花', 'BLOOM CLOSED': '裂隙之花閉合',
+  'Two waves · it closes when the last one falls': '兩波 · 最後一隻倒下就會閉合', 'shards and scrap gathered': '收集到碎片同廢料', 'The bloom withers': '裂隙之花枯萎咗', 'wave': '波', 'left': '隻',
+  'The Furnace is down there, under a veil. Three seals hold it asleep: the Vent Fields, the Cooling Towers, the Gear Graveyard. Each one has its keepers.': '熔爐就喺下面，困喺帷幕入面。三個封印令佢沉睡：蒸氣原、冷卻塔、齒輪墳場。每個都有守衛。',
+  'The Bastion sleeps in the caldera behind a veil. Three seals keep it there: out on the Ash Plains, up at the Chain Altar, across the Lava Fields. They are guarded.': '要塞魔喺火山口嘅帷幕後面瞓緊。三個封印將佢困住：灰燼平原、鎖鏈祭壇、熔岩原對面。全部都有守衛。',
+  'One seal down. The veil is thinner already.': '破咗一個封印。帷幕已經變薄。', 'Two. One more and it wakes. Be ready when it does.': '兩個。再一個佢就會醒。準備好。',
+  'The veil is down. It knows you are here now. Go to it, before it comes to you.': '帷幕冇咗。佢知道你喺度。趁佢未搵你，你先去搵佢。' });
 
 /* =====================================================================
    13. GAME — state, loop, flow
