@@ -16692,7 +16692,7 @@ const Arms = {
       'Long Sword · white steel in a gold frame. Flowing cuts, spirit blades, iaido.': '長劍 · 金框白鋼。流暢連斬、氣刃斬、居合。',
       'Katana · a black blade with a silver feathered guard. Fast draw-cuts, a lunging thrust, a charged iai.': '武士刀 · 黑刃配銀羽刀鐔。快速拔刀斬、突刺、蓄力居合。',
       'Katana · moonlit steel. The fastest edge in the armoury.': '武士刀 · 月光般嘅鋼。軍械庫入面最快嘅刀。',
-      'Overhead cleave': '上段劈斬', 'Wide sweep': '橫掃', 'Crushing slam': '重砸', 'Charged slash': '蓄力斬', 'Draw cut': '拔刀斬', 'Return cut': '回刀斬', 'Lunging thrust': '突刺', 'Iai flash': '居合一閃' }); } catch (e) {}
+      'Overhead cleave': '上段劈斬', 'Wide sweep': '橫掃', 'Crushing slam': '重砸', 'Charged slash': '蓄力斬', 'Draw cut': '拔刀斬', 'Return cut': '回刀斬', 'Lunging thrust': '突刺', 'Iai flash': '居合一閃', 'Hold to charge': '按住蓄力' }); } catch (e) {}
     const P0 = Player.prototype; const sw0 = P0.setWeaponType; P0.setWeaponType = function (type, g) { sw0.call(this, type, g); if (!this.isAI && type === 'longsword') { try { Arms.setCls(this, g); } catch (e) { console.warn('arms cls', e); } } else this.wcls = null; };
     const ta0 = P0.tryAction; P0.tryAction = function (type, dir) { if (!this.isAI && type === 'heavy' && this.wtype === 'longsword' && (this.wcls === 'great' || this.wcls === 'katana')) { const s = this.state, a = this.act; if (this.py > .05) return ta0.call(this, type, dir);
         const free = s === 'move' || (s === 'dodge' && a && a.t >= .28); const chainOK = s === 'act' && a && /^light/.test(a.name) && a.t >= (a.def.chain ?? a.def.dur); if (free || chainOK) { this.combo = 0; return this.start('heavy', dir); } return false; }
@@ -16700,6 +16700,12 @@ const Arms = {
     // carrying a great sword: a little slower on foot
     const u0 = P0.update; P0.update = function (dt, cam) { const x0 = this.pos.x, z0 = this.pos.z; u0.call(this, dt, cam); if (!this.isAI && this.wcls === 'great' && this.state === 'move' && (this.py || 0) < .05) { this.pos.x -= (this.pos.x - x0) * .12; this.pos.z -= (this.pos.z - z0) * .12; } };
     const ga = Gear.apply.bind(Gear); Gear.apply = function (pl) { ga(pl); try { Arms.look(pl); } catch (e) { console.warn('arms look', e); } };
+    // the combo hint names this blade's moves
+    try { const cu0 = ComboHint.update.bind(ComboHint); ComboHint.update = function () { const pl = Game.player; if (!pl || !(pl.wcls === 'great' || pl.wcls === 'katana')) return cu0(); const a = pl.act; let L = [];
+        const N = pl.wcls === 'great' ? { light1: [['LMB', 'Wide sweep'], ['RMB', 'Charged slash']], light2: [['LMB', 'Crushing slam'], ['RMB', 'Charged slash']], light3: [['LMB', 'Overhead cleave'], ['RMB', 'Charged slash']], heavy: [['RMB', 'Hold to charge']] }
+          : { light1: [['LMB', 'Return cut'], ['RMB', 'Iai flash']], light2: [['LMB', 'Lunging thrust'], ['RMB', 'Iai flash']], light3: [['LMB', 'Draw cut'], ['RMB', 'Iai flash']], heavy: [['RMB', 'Hold to charge']] };
+        if (pl.state === 'act' && a && N[a.name]) L = N[a.name]; else if (pl.state === 'dodge') L = [['LMB', 'Shadow slash']];
+        const key = L.map(x => x.join(':')).join('|'); if (!this.el) this.el = $('comboHint'); if (this.el && key !== this.last) { this.last = key; this.el.innerHTML = L.map(([k, t]) => `<div><kbd>${k}</kbd><span>${I18N.t(t)}</span></div>`).join(''); this.el.classList.toggle('on', L.length > 0); } }; } catch (e) {}
     const os0 = Sfx.onSwing.bind(Sfx); Sfx.onSwing = function (pl, a, d) { const T = pl && pl.wcls && Arms.SW[pl.wcls]; if (!T) return os0(pl, a, d); const keep = Sfx.SW; Sfx.SW = { ...keep, ...T }; try { return os0(pl, a, d); } finally { Sfx.SW = keep; } }; },
   tick() { if (this._given || Game.state !== 'playing' || !Gear || !Gear.owned) return; this._given = 1; for (const id in this.NEW) if (!(id in Gear.owned)) Gear.owned[id] = 0; try { Gear.apply(Game.player); } catch (e) {} } };
 window.__AZarms = Arms;
