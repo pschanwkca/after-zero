@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.22</small>
+        <small>Rift Hunter field prototype · Build 3.22.1</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.22":"裂隙獵人 實地原型 · Build 3.22","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.22.1":"裂隙獵人 實地原型 · Build 3.22.1","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -16511,16 +16511,16 @@ const Snd = {
       for (let r = 0; r < 9; r++) { const at = Math.floor(sr * (.007 + r * .011 + Math.random() * .006)) + (ch ? 37 : 0); if (at < n) d[at] += (Math.random() < .5 ? -1 : 1) * (.5 - r * .045); } }
     return b; },
   space() { const A = Audio, c = A.ctx; if (!c || A._space) return; A._space = 1;
-    try { const conv = c.createConvolver(); conv.buffer = this.ir(c); const inG = c.createGain(); const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 180; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200;
+    try { const conv = c.createConvolver(); conv.buffer = this.ir(c); const inG = c.createGain(); const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 180; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3600;
       const out = c.createGain(); out.gain.value = .36; inG.connect(hp); hp.connect(conv); conv.connect(lp); lp.connect(out); out.connect(A.master);
       try { A.rev.disconnect(); } catch (e) {} A.rev = inG; } catch (e) { console.warn('rev', e); }
     // master tone + limiter: master → shelf → (existing compressor) … insert before the destination
-    try { const sh = c.createBiquadFilter(); sh.type = 'highshelf'; sh.frequency.value = 7600; sh.gain.value = -3; const lo = c.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 110; lo.gain.value = 1.5;
+    try { const sh = c.createBiquadFilter(); sh.type = 'highshelf'; sh.frequency.value = 4500; sh.gain.value = -6; const lo = c.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 110; lo.gain.value = 1.5;
       const lim = c.createDynamicsCompressor(); lim.threshold.value = -4; lim.knee.value = 2; lim.ratio.value = 18; lim.attack.value = .002; lim.release.value = .12;
       A.master.disconnect(); A.master.connect(lo); lo.connect(sh); const comp = c.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 10; comp.ratio.value = 3.5; comp.attack.value = .006; comp.release.value = .2;
       sh.connect(comp); comp.connect(lim); lim.connect(c.destination); } catch (e) { console.warn('master', e); } },
   musicBus() { const M = Music, c = Audio.ctx; if (!M.bus || M._chorus) return; M._chorus = 1;
-    try { const bus = M.bus; bus.disconnect(); const lo = c.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 150; lo.gain.value = 2.5; const hc = c.createBiquadFilter(); hc.type = 'lowpass'; hc.frequency.value = 6800; hc.Q.value = .5;
+    try { const bus = M.bus; bus.disconnect(); const lo = c.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 150; lo.gain.value = 2.5; const hc = c.createBiquadFilter(); hc.type = 'lowpass'; hc.frequency.value = 4600; hc.Q.value = .5;
       bus.connect(lo); lo.connect(hc); const dry = c.createGain(); dry.gain.value = .82; hc.connect(dry); dry.connect(Audio.master);
       for (const [ms, rate, pan] of [[11, .31, -.7], [17, .23, .7]]) { const d = c.createDelay(.05); d.delayTime.value = ms / 1000; const l = c.createOscillator(); l.frequency.value = rate; const lg = c.createGain(); lg.gain.value = .0024; l.connect(lg); lg.connect(d.delayTime); l.start();
         const g = c.createGain(); g.gain.value = .3; const p = c.createStereoPanner(); p.pan.value = pan; hc.connect(d); d.connect(g); g.connect(p); p.connect(Audio.master); } } catch (e) { console.warn('chorus', e); } },
@@ -16534,22 +16534,23 @@ const Snd = {
     const g = this.envG(oc, t, a, peak, dur, hold); let n = o; if (drive) { const w = this.shaper(oc, drive); o.connect(w); n = w; } n.connect(g); g.connect(out); o.start(t); o.stop(t + a + hold + dur + .05); },
   ringP(oc, out, t, fs, dur, peak) { for (const f of fs) this.T(oc, out, t, dur * (.6 + Math.random() * .5), { f0: f, f1: f * .996, peak: peak * (.6 + Math.random() * .5) }); },
   RECIPES: {
-    slash(S, oc, o, r) { S.N(oc, o, 0, .028, { type: 'highpass', f0: 3200, f1: 2600, peak: .9 }); S.N(oc, o, .002, .1, { f0: 3400 * r, f1: 900, q: 1.3, peak: .55, drive: 2.5 });
-      S.T(oc, o, 0, .17, { f0: 175 * r, f1: 52, peak: .95, drive: 1.8 }); S.N(oc, o, .004, .13, { type: 'lowpass', f0: 1100, f1: 220, peak: .5 });
-      S.ringP(oc, o, .004, [2650 * r, 3930 * r, 5180 * r], .26, .045); S.N(oc, o, .01, .2, { type: 'highpass', f0: 6500, f1: 7000, peak: .05 }); },
-    heavy(S, oc, o, r) { S.N(oc, o, 0, .035, { type: 'highpass', f0: 2800, f1: 2000, peak: 1 }); S.N(oc, o, .003, .2, { f0: 2500 * r, f1: 480, q: 1.1, peak: .65, drive: 3 });
-      S.T(oc, o, 0, .36, { f0: 128 * r, f1: 36, peak: 1, drive: 2.4 }); S.T(oc, o, .01, .55, { f0: 62, f1: 29, peak: .55 }); S.N(oc, o, .005, .32, { type: 'lowpass', f0: 2600, f1: 220, peak: .62, drive: 1.6 });
-      S.ringP(oc, o, .006, [1820 * r, 2710 * r, 3640 * r, 4890 * r], .55, .05); for (let i = 0; i < 5; i++) S.N(oc, o, .05 + Math.random() * .25, .03, { type: 'highpass', f0: 2600 + Math.random() * 3000, f1: 2400, peak: .12 + Math.random() * .1, pan: Math.random() * 1.4 - .7 }); },
-    crit(S, oc, o, r) { S.RECIPES.slash(S, oc, o, r); S.ringP(oc, o, .01, [3520 * r, 5280 * r, 7040 * r], .8, .07); S.N(oc, o, .02, .45, { type: 'highpass', f0: 7600, f1: 9000, peak: .06, a: .04 }); S.T(oc, o, 0, .3, { f0: 90, f1: 40, peak: .5 }); },
-    whoosh(S, oc, o, r) { const p = oc.createStereoPanner(); p.pan.setValueAtTime(-.55, 0); p.pan.linearRampToValueAtTime(.55, .22); p.connect(o);
-      S.N(oc, p, 0, .17, { f0: 700 * r, f1: 3200 * r, q: 2.2, peak: .4, a: .07 }); S.N(oc, p, .02, .14, { type: 'highpass', f0: 4200, f1: 6800, peak: .1, a: .06 }); S.T(oc, o, .03, .1, { f0: 160, f1: 90, peak: .07 }); },
-    whooshH(S, oc, o, r) { const p = oc.createStereoPanner(); p.pan.setValueAtTime(-.7, 0); p.pan.linearRampToValueAtTime(.7, .34); p.connect(o);
-      S.N(oc, p, 0, .3, { f0: 260 * r, f1: 1700 * r, q: 1.6, peak: .5, a: .12 }); S.N(oc, p, .05, .22, { type: 'highpass', f0: 3000, f1: 5200, peak: .1, a: .1 }); S.T(oc, o, .04, .3, { f0: 80, f1: 44, peak: .28, a: .06 }); },
-    clank(S, oc, o, r) { S.N(oc, o, 0, .02, { type: 'highpass', f0: 4000, f1: 3500, peak: .8 }); S.ringP(oc, o, 0, [1180 * r, 1830 * r, 2610 * r, 3720 * r, 5040 * r], .55, .09); S.T(oc, o, 0, .12, { f0: 240, f1: 120, peak: .35, drive: 1.5 }); },
-    hurt(S, oc, o, r) { S.T(oc, o, 0, .24, { f0: 140 * r, f1: 46, peak: .9, drive: 2.6 }); S.N(oc, o, 0, .16, { type: 'lowpass', f0: 1500, f1: 260, peak: .55, drive: 1.8 }); S.N(oc, o, .01, .12, { f0: 520, f1: 300, q: 3, peak: .3, drive: 3 }); },
-    slam(S, oc, o, r) { S.N(oc, o, 0, .05, { type: 'highpass', f0: 1800, f1: 1200, peak: .5 }); S.T(oc, o, 0, .9, { f0: 74 * r, f1: 27, peak: 1, drive: 1.6 }); S.N(oc, o, .01, .8, { type: 'lowpass', f0: 1600, f1: 90, peak: .7, drive: 1.4 });
-      for (let i = 0; i < 9; i++) S.N(oc, o, .08 + Math.random() * .6, .05, { type: 'bandpass', f0: 900 + Math.random() * 2400, f1: 700, q: 2, peak: .06 + Math.random() * .08, pan: Math.random() * 1.6 - .8 }); },
-    step(S, oc, o, r) { S.N(oc, o, 0, .06, { type: 'lowpass', f0: 900 * r, f1: 260, peak: .4 }); S.N(oc, o, .004, .04, { type: 'highpass', f0: 2600, f1: 2200, peak: .06 }); S.T(oc, o, 0, .08, { f0: 95 * r, f1: 50, peak: .3 }); } },
+    // darker voicing (3.22.1): transients and cuts sit in the low mids, rings are low and short, no air hiss on top
+    slash(S, oc, o, r) { S.N(oc, o, 0, .022, { f0: 1700, f1: 1100, q: .8, peak: .6 }); S.N(oc, o, .002, .12, { f0: 1400 * r, f1: 400, q: 1.1, peak: .55, drive: 2.2 });
+      S.T(oc, o, 0, .2, { f0: 140 * r, f1: 46, peak: 1, drive: 2 }); S.N(oc, o, .004, .15, { type: 'lowpass', f0: 700, f1: 150, peak: .6 });
+      S.ringP(oc, o, .004, [1150 * r, 1720 * r], .18, .025); },
+    heavy(S, oc, o, r) { S.N(oc, o, 0, .03, { f0: 1300, f1: 800, q: .8, peak: .7 }); S.N(oc, o, .003, .22, { f0: 1100 * r, f1: 260, q: 1, peak: .65, drive: 3 });
+      S.T(oc, o, 0, .4, { f0: 105 * r, f1: 32, peak: 1, drive: 2.6 }); S.T(oc, o, .01, .6, { f0: 52, f1: 26, peak: .7 }); S.N(oc, o, .005, .35, { type: 'lowpass', f0: 1200, f1: 160, peak: .7, drive: 1.8 });
+      S.ringP(oc, o, .006, [820 * r, 1240 * r], .3, .03); for (let i = 0; i < 5; i++) S.N(oc, o, .05 + Math.random() * .25, .04, { f0: 600 + Math.random() * 1000, f1: 500, q: 1.5, peak: .08 + Math.random() * .06, pan: Math.random() * 1.4 - .7 }); },
+    crit(S, oc, o, r) { S.RECIPES.slash(S, oc, o, r); S.ringP(oc, o, .01, [1760 * r, 2350 * r], .5, .045); S.T(oc, o, 0, .35, { f0: 80, f1: 36, peak: .6 }); },
+    whoosh(S, oc, o, r) { const p = oc.createStereoPanner(); p.pan.setValueAtTime(-.5, 0); p.pan.linearRampToValueAtTime(.5, .22); p.connect(o);
+      S.N(oc, p, 0, .2, { f0: 380 * r, f1: 1500 * r, q: 2, peak: .45, a: .07 }); S.N(oc, p, .02, .16, { f0: 900, f1: 2000, q: 1, peak: .07, a: .06 }); S.T(oc, o, .03, .12, { f0: 120, f1: 70, peak: .1 }); },
+    whooshH(S, oc, o, r) { const p = oc.createStereoPanner(); p.pan.setValueAtTime(-.65, 0); p.pan.linearRampToValueAtTime(.65, .34); p.connect(o);
+      S.N(oc, p, 0, .32, { f0: 180 * r, f1: 900 * r, q: 1.6, peak: .55, a: .12 }); S.N(oc, p, .05, .24, { f0: 600, f1: 1400, q: 1, peak: .08, a: .1 }); S.T(oc, o, .04, .32, { f0: 70, f1: 40, peak: .3, a: .06 }); },
+    clank(S, oc, o, r) { S.N(oc, o, 0, .02, { f0: 2000, f1: 1600, q: 1, peak: .5 }); S.ringP(oc, o, 0, [640 * r, 990 * r, 1410 * r, 1980 * r], .5, .07); S.T(oc, o, 0, .14, { f0: 180, f1: 90, peak: .4, drive: 1.5 }); },
+    hurt(S, oc, o, r) { S.T(oc, o, 0, .26, { f0: 120 * r, f1: 42, peak: .9, drive: 2.6 }); S.N(oc, o, 0, .16, { type: 'lowpass', f0: 1000, f1: 220, peak: .55, drive: 1.8 }); S.N(oc, o, .01, .12, { f0: 420, f1: 260, q: 3, peak: .3, drive: 3 }); },
+    slam(S, oc, o, r) { S.N(oc, o, 0, .05, { f0: 900, f1: 600, q: .8, peak: .5 }); S.T(oc, o, 0, .9, { f0: 70 * r, f1: 26, peak: 1, drive: 1.6 }); S.N(oc, o, .01, .8, { type: 'lowpass', f0: 1100, f1: 80, peak: .7, drive: 1.4 });
+      for (let i = 0; i < 9; i++) S.N(oc, o, .08 + Math.random() * .6, .05, { f0: 500 + Math.random() * 1100, f1: 400, q: 2, peak: .06 + Math.random() * .06, pan: Math.random() * 1.6 - .8 }); },
+    step(S, oc, o, r) { S.N(oc, o, 0, .06, { type: 'lowpass', f0: 600 * r, f1: 200, peak: .4 }); S.T(oc, o, 0, .08, { f0: 85 * r, f1: 45, peak: .3 }); } },
   PEAK: { slash: .72, heavy: .92, crit: .8, whoosh: .42, whooshH: .58, clank: .5, hurt: .72, slam: .95, step: .3 },
   norm(b, target) { let pk = 0; for (let c = 0; c < b.numberOfChannels; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) { const v = Math.abs(d[i]); if (v > pk) pk = v; } } if (pk < 1e-4) return; const k = target / pk; for (let c = 0; c < b.numberOfChannels; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] *= k; } },
   DUR: { slash: .6, heavy: 1.1, crit: 1.1, whoosh: .4, whooshH: .6, clank: .8, hurt: .45, slam: 1.4, step: .2 },
