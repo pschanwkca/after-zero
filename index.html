@@ -16746,6 +16746,11 @@ const Cool = {
   tier() { try { const T = GFX.tiers; T.high.pr = 1.25; T.high.ms = 2; T.medium.pr = 1; T.medium.minPr = .7; T.high.minPr = .8;
       GFX.init(); renderer.setPixelRatio(GFX.pr); composer.setPixelRatio(GFX.pr);
       for (const r of [composer.renderTarget1, composer.renderTarget2]) if (r.samples !== GFX.T.ms) { r.samples = GFX.T.ms; r.dispose(); } } catch (e) { console.warn('cool tier', e); } },
+  fogList(W) { if (W._fogL) return W._fogL; const L = []; const small = new Set((W._small || []).map(i => i.o)); const sph = new THREE.Sphere(); W.group.updateMatrixWorld(true);
+    W.group.traverse(o => { if (!(o.isMesh || o.isSprite || o.isLine) || o.name === 'batch' || o.isInstancedMesh || small.has(o) || o.layers.mask !== 1 || !o.geometry || !o.frustumCulled) return; if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+      sph.copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld); if (sph.radius > 60) return; L.push({ o, x: sph.center.x, z: sph.center.z, r: sph.radius, off: false }); }); return W._fogL = L; },
+  fogCull() { const W = Game.world, f = scene.fog; if (!W || !f || !W._cgAdopted && W._cg) return; const D = f.isFogExp2 ? 1.75 / Math.max(1e-4, f.density) : f.far; if (!(D > 60)) return; const P = camera.position;
+    for (const it of this.fogList(W)) { const d = Math.hypot(it.x - P.x, it.z - P.z) - it.r; const far = d > D; if (far !== it.off) { if (far && it.o.layers.mask !== 1) continue; it.off = far; it.o.layers.mask = far ? 0 : 1; } } },
   hook() { if (this._h) return; this._h = 1; this.tier();
     // frame cap
     const f0 = Game.frame.bind(Game); Game.frame = function (now) { const cap = Cool.cap(); const step = 1000 / cap;
@@ -16761,10 +16766,15 @@ const Cool = {
       if (st === 'map') { if (Cool.mapFrames++ > 2) return; } else Cool.mapFrames = 0;
       Cool.rendered++; const every = (GFX.mobile || window.__AZlite) ? 3 : 2; if (Cool.rendered % every === 0 || Cool._shadowNow) { renderer.shadowMap.needsUpdate = true; Cool._shadowNow = false; }
       return r0(d); };
-    // far hounds are neither drawn nor animated
-    const a0 = Hounds.animate.bind(Hounds); Hounds.animate = function (h, dt, crouch) { const R = h.R; if (!R || !R.root || h.state === 'dead') return a0(h, dt, crouch);
-      const lim = (GFX.mobile || window.__AZlite) ? 60 : 90; const dx = h.pos.x - camera.position.x, dz = h.pos.z - camera.position.z; const far = dx * dx + dz * dz > lim * lim;
-      if (far) { if (R.root.visible) R.root.visible = false; h._culled = true; return; } if (h._culled) { R.root.visible = true; h._culled = false; } return a0(h, dt, crouch); };
+    // far hounds and small props: Perf's draw distance existed only on Low/Medium — High now has one too, and hounds
+    // beyond it are hidden whatever they are doing (Perf only hid idle ones, and re-showed everything on High)
+    Perf.cullD = () => GFX.name === 'low' ? 52 : GFX.name === 'medium' ? 78 : 95;
+    Perf.cull = function () { const W = Game.world; if (!W) return; const D = this.cullD(), P = camera.position;
+      for (const it of W._small || []) { const far = (it.x - P.x) ** 2 + (it.z - P.z) ** 2 > D * D; if (far !== it.off) { it.off = far; it.o.layers.mask = far ? 0 : 1; } }
+      const HD = (GFX.mobile || window.__AZlite) ? 60 : 90; if (typeof Hounds !== 'undefined') for (const h of Hounds.list) { if (!h.R || h.state === 'dead') continue; const far = hdist(h.pos, P) > HD; h.R.root.visible = !far; h._culled = far; } };
+    // beyond the fog: anything the fog has swallowed (≥ 95 %) is not drawn — mostly the far city seen from high ground
+    const cull0 = Perf.cull.bind(Perf); Perf.cull = function () { cull0(); try { Cool.fogCull(); } catch (e) {} };
+    const a0 = Hounds.animate.bind(Hounds); Hounds.animate = function (h, dt, crouch) { if (h._culled && h.state !== 'dead') return; return a0(h, dt, crouch); };
     // menu backgrounds: no redraw while hunting
     try { if (typeof VoidBG !== 'undefined') { const d0 = VoidBG.draw.bind(VoidBG); VoidBG.draw = function (ts) { if (Game.state === 'playing') { this.last = ts; return; } return d0(ts); }; } } catch (e) {}
     // a world change or a teleport forces a fresh shadow map
