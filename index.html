@@ -16293,19 +16293,19 @@ const Feel = {
       const y0 = this.yaw, s0 = this.state, air0 = (this.py || 0) > .05, vy0 = this.vy || 0, gy0 = (this.gy || 0) + (this.py || 0);
       up0.call(this, dt, cam);
       try { Feel.post(this, dt, cam, y0, s0, air0, vy0, gy0); } catch (e) { if (!Feel._e) { Feel._e = 1; console.warn('feel', e); } } };
-    const ta0 = P.tryAction; P.tryAction = function (type, dir) { if (this.isAI) return ta0.call(this, type, dir);
+    const ta0 = P.tryAction; Feel.ta0 = ta0; P.tryAction = function (type, dir) { if (this.isAI) return ta0.call(this, type, dir);
       if (type === 'jump') { let ok = ta0.call(this, type, dir);
         // coyote: just walked off an edge (falling, never jumped) → still allowed for a moment
         if (!ok && (this.py || 0) > .05 && !this._jumped && (this.vy || 0) <= .5 && Game.time - (this._groundT || -9) < Feel.COYOTE && this.state === 'move' && this.st > 4) {
           this.vy = 7.4; this.spend && this.spend(6); try { Audio.play('dodge'); } catch (e) {} ok = true; }
-        if (ok) { this._jumped = true; this._jbuf = 0; } else this._jbuf = Game.time; return ok; }
+        if (ok) { this._jumped = true; this._jbuf = null; } else this._jbuf = Game.time; return ok; }
       return ta0.call(this, type, dir); }; },
   post(pl, dt, cam, y0, s0, air0, vy0, gy0) {
     const grounded = (pl.py || 0) <= .02 && (pl.vy || 0) <= 0;
     if (grounded) { pl._groundT = Game.time; if (air0) { pl._jumped = false; const drop = (pl._apex || gy0) - ((pl.gy || 0)); if (drop > 2.2) { try { Cam.nudge && Cam.nudge(new V3(0, -1, 0), Math.min(.5, drop * .06)); Game.shake(Math.min(.25, drop * .03)); } catch (e) {} } pl._apex = null; } }
     else { const y = (pl.gy || 0) + (pl.py || 0); pl._apex = Math.max(pl._apex ?? y, y); }
     // buffered jump: pressed shortly before she could jump
-    if (pl._jbuf && Game.time - pl._jbuf < Feel.BUF && grounded && (pl.state === 'move' || pl.state === 'dodge')) { pl._jbuf = 0; pl.tryAction('jump', pl.inputDir(cam)); }
+    if (pl._jbuf != null && Game.time - pl._jbuf < Feel.BUF && grounded && (pl.state === 'move' || pl.state === 'dodge')) { pl._jbuf = null; if (Feel.ta0.call(pl, 'jump', pl.inputDir(cam))) pl._jumped = true; }
     // dodge tail: a held direction flows into running
     if (pl.state === 'dodge' && pl.act && !pl.act.air && pl.act.t >= .34) { const d = pl.inputDir(cam); if (d.lengthSq() > .25) { pl.state = 'move'; pl.act = null; pl.dodgeEnd = Game.time; } }
     // turning: same target as the game, quicker ease and a floor on angular speed
