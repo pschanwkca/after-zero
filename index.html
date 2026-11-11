@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.24</small>
+        <small>Rift Hunter field prototype · Build 3.25</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.24":"裂隙獵人 實地原型 · Build 3.24","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.25":"裂隙獵人 實地原型 · Build 3.25","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -13744,7 +13744,8 @@ const VHud={el:null,on:false,calmK:0,lastHurt:-99,lastAct:-99,prevHp:0,acc:0,obj
 #mini .me{border-bottom-color:#fff!important}
 #miniLbl{display:none!important}
 /* eclipse */
-.vh-ecl{position:absolute;right:max(60px,7vw);top:calc(50vh - 40px);width:132px;height:132px}
+.vh-ecl{position:absolute;right:max(60px,7vw);top:calc(50vh - 40px);width:132px;height:132px;display:none!important}#stw{display:none!important}
+.vh-mp{position:absolute;left:0;top:57px;width:42%;height:2px;background:rgba(214,236,255,.14)}.vh-mp::after{content:'';position:absolute;inset:0;width:var(--k,0%);background:linear-gradient(90deg,rgba(150,190,255,.55),rgba(214,236,255,.95));box-shadow:0 0 6px rgba(160,200,255,.6)}
 .vh-ecl svg{width:100%;height:100%;overflow:visible}
 .vh-ecl .base{fill:none;stroke:var(--slh);stroke-width:1}
 .vh-ecl .arc{fill:none;stroke:#fff;stroke-width:6;stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(255,255,255,.7))}
@@ -13857,7 +13858,7 @@ html.touch .vh-ecl{display:block!important;width:78px;height:78px;right:auto;lef
 `,
   build(){if(this.el)return;const st=document.createElement('style');st.id='vhudCss';st.textContent=this.css;document.body.appendChild(st);
     const h=document.createElement('div');h.id='vhud';h.innerHTML=`
-      <div class="vh-bars vfade"><i class="stack"></i><span class="gl orig"><i></i></span><canvas id="vhHp" width="1120" height="56"></canvas><span class="num n1" id="vhHpN"></span><canvas id="vhSt" width="1120" height="56"></canvas><span class="num n2" id="vhStN"></span></div>
+      <div class="vh-bars vfade"><i class="stack"></i><span class="gl orig"><i></i></span><canvas id="vhHp" width="1120" height="56"></canvas><span class="num n1" id="vhHpN"></span><canvas id="vhSt" width="1120" height="56"></canvas><span class="num n2" id="vhStN"></span><i class="vh-mp" id="vhMp"></i></div>
       <div class="vh-comp vfade"><div class="ring2"></div><div class="ring"></div><div class="rot" id="vhRot"><span class="n"><b>N</b></span><span class="gl gN"><i></i></span></div><span class="gl gW"><i></i></span><span class="gl gE"><i></i></span><span class="gl gS"></span></div>
       <div class="vh-ecl vfade" id="vhEcl"><svg viewBox="-70 -70 140 140"><circle class="base" r="60"/><circle class="inner" r="48"/><circle class="arc" id="vhArc" r="54" transform="rotate(-90)" stroke-dasharray="339.3" stroke-dashoffset="339.3"/></svg><span class="gl gC"><i></i></span><span class="gl gT"><i></i></span><span class="gl gB"><i></i></span><div class="lvd" id="vhLv"><b></b><b></b><b></b></div></div>
       <div class="vh-gear vfade"><div class="vh-emb"><div class="orb"></div>${svgI(SLI.blade,1.4)}<span class="gl g1"><i></i></span></div><div class="vh-dia" id="vhA0"></div><div class="vh-dia" id="vhA1"></div><div class="vh-dia" id="vhA2"></div></div>
@@ -13891,7 +13892,7 @@ html.touch .vh-ecl{display:block!important;width:78px;height:78px;right:auto;lef
     if(pl.hp<this.prevHp-.5)this.lastHurt=G.time;this.prevHp=pl.hp;if(pl.state==='act'||pl.state==='dodge')this.lastAct=G.time;
     const kHp=clamp(pl.hp/pl.maxHp,0,1),kSt=clamp(pl.st/(pl.maxSt||100),0,1);const low=kHp<.35;
     this.line(this.gHp,this.cHp.width,this.cHp.height,kHp,clamp((pl.hpChip||pl.hp)/pl.maxHp,0,1),t,low?1.6:.85,low?11:7);
-    const kSp=clamp((pl.mp||0)/(pl.maxMp||100),0,1),slv=pl.spiritLv||0;this.line(this.gSt,this.cSt.width,this.cSt.height,kSp,kSp,t+.4,.55+slv*.45,4+slv*2,slv>=3?'#ffffff':'#d6ecff');
+    const kSp=clamp((pl.mp||0)/(pl.maxMp||100),0,1),slv=pl.spiritLv||0;{/* 3.25: the second line is stamina; spirit (MP) is the thin rule under it */const stLow=pl.exhausted||kSt<.25;this.line(this.gSt,this.cSt.width,this.cSt.height,kSt,kSt,t+.4,stLow?1.3:.5,stLow?6:3,stLow?'#ff8a6a':'#d6ecff');const mp=this.el.querySelector('#vhMp');if(mp){const v=(kSp*100).toFixed(1)+'%';if(mp._v!==v){mp._v=v;mp.style.setProperty('--k',v);}}}
     const n1=`${Math.ceil(pl.hp)} / ${Math.round(pl.maxHp)}`,n2='lv'+slv;if(this._n1!==n1){this._n1=n1;this.el.querySelector('#vhHpN').textContent=n1;}if(this._n2!==n2){this._n2=n2;this.el.querySelector('#vhStN').innerHTML=[0,1,2].map(i=>`<b class="${i<slv?'on':''}"></b>`).join('');}
     const km=kSt;const arc=this.el.querySelector('#vhArc');const off=(339.3*(1-km)).toFixed(1);if(arc.getAttribute('stroke-dashoffset')!==off)arc.setAttribute('stroke-dashoffset',off);
     const ecl=this.el.querySelector('#vhEcl');ecl.classList.toggle('low',km<.25||!!pl.exhausted);if(km<.995)this._stUse=G.time;ecl.classList.toggle('rest',G.time-(this._stUse||-99)>1.4);
@@ -16432,7 +16433,7 @@ const EdgeKit = {
 window.__AZedge = EdgeKit;
 setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); try { EdgeKit.tick(); } catch (e) {} }; }, 0);
 /* =====================================================================
-   BUILD 3.22 · WALKING ON SLOPES
+   BUILD 3.22 · WALKING ON SLOPES (3.25: also accel lean, turn banking, head leading turns, run counter-twist, idle breathing, landing dip)
    Before, the hunter's feet were planted on a flat plane at her own height: going up a ramp the front foot sank into
    it, going down it hung in the air, and her body stayed bolt upright at the same speed either way.
    · Each foot finds the ground under it; the pelvis drops to let the lower leg reach; the soles tilt with the slope.
@@ -16471,18 +16472,35 @@ const Slope = {
     pl._cd = damp(pl._cd || 0, inAct ? Math.max(0, P0.cr || 0) * C.drop : 0, 14, dt);
     pl._fw = damp(pl._fw || 0, inAct ? (P0.lg || 0) * C.fw : 0, 12, dt);
     pl._swl = damp(pl._swl || 0, inAct ? (P0.tp || 0) * C.lean : 0, 14, dt);
-    const mv = clamp(.35 + .65 * (moveAmt || 0), 0, 1); const slopeLean = (s > 0 ? s * .42 : s * .2) * mv; const lean = slopeLean + pl._swl;
-    if (Math.abs(pl._pd) < .004 && Math.abs(lean) < .004 && Math.abs(off.Left) < .004 && Math.abs(off.Right) < .004 && Math.abs(pl._tw) < .004 && Math.abs(pl._sh) < .003 && Math.abs(pl._cd) < .003 && Math.abs(pl._fw) < .003) return;
+    // ---- locomotion (3.25): lean into acceleration, bank into turns, counter-swing hips and shoulders while running,
+    // breathe when still, and land with weight
+    const moving = pl.state === 'move' && grounded; const spd = pl.speed || 0; const yawRate = Math.atan2(Math.sin(pl.yaw - (pl._pyaw ?? pl.yaw)), Math.cos(pl.yaw - (pl._pyaw ?? pl.yaw))) / Math.max(dt, 1e-3); pl._pyaw = pl.yaw;
+    const acc = (spd - (pl._pspd ?? spd)) / Math.max(dt, 1e-3); pl._pspd = spd;
+    pl._al = damp(pl._al || 0, moving ? clamp(acc * .011, -.14, .16) + spd * .006 : 0, 6, dt);
+    pl._bank = damp(pl._bank || 0, moving ? clamp(-yawRate * spd * .0105, -.24, .24) : 0, 7, dt);
+    pl._hl = damp(pl._hl || 0, moving ? clamp(yawRate * .09, -.38, .38) : 0, 9, dt); // the head leads into a turn
+    const ph = pl.walkPh || 0, runK = moving ? clamp(spd / 8.4, 0, 1) : 0; const runTw = Math.sin(ph) * .11 * runK;
+    const still = pl.state === 'move' && grounded && spd < .3; const breathe = still ? Math.sin(performance.now() / 1000 * 1.9) * .022 : 0;
+    { const py = pl.py || 0; if (py > .05) { pl._airPk = Math.max(pl._airPk || 0, py); pl._fallV = Math.min(pl._fallV || 0, pl.vy || 0); } else { if ((pl._airPk || 0) > .35 && grounded) pl._land = Math.min(.17, .045 + Math.abs(pl._fallV || 0) * .012); pl._airPk = 0; pl._fallV = 0; } pl._land = damp(pl._land || 0, 0, 6, dt); }
+    const mv = clamp(.35 + .65 * (moveAmt || 0), 0, 1); const slopeLean = (s > 0 ? s * .42 : s * .2) * mv; const lean = slopeLean + pl._swl + pl._al;
+    const quiet = Math.abs(pl._pd) < .004 && Math.abs(lean) < .004 && Math.abs(off.Left) < .004 && Math.abs(off.Right) < .004 && Math.abs(pl._tw) < .004 && Math.abs(pl._sh) < .003 && Math.abs(pl._cd) < .003 && Math.abs(pl._fw) < .003 && Math.abs(pl._bank) < .003 && Math.abs(runTw) < .003 && (pl._land || 0) < .003 && Math.abs(pl._hl) < .003;
+    // standing still: only the chest rises and falls (no leg work needed)
+    if (quiet) { if (breathe && B.Spine2) { B.Spine2.rotateX(breathe * .6); if (B.LeftShoulder) B.LeftShoulder.rotateZ(breathe * .35); if (B.RightShoulder) B.RightShoulder.rotateZ(-breathe * .35); } return; }
     const W8 = pl.weapon && pl.weapon.parent === root ? pl.weapon : null; const rq = root.quaternion, rqi = rq.clone().invert();
     const wTrans = T => { if (!W8) return; W8.position.add(T.clone().applyQuaternion(rqi)); };
     const wRot = (q, P) => { if (!W8) return; const Pl = root.worldToLocal(P.clone()); const ql = rqi.clone().multiply(q).multiply(rq); W8.position.sub(Pl).applyQuaternion(ql).add(Pl); W8.quaternion.premultiply(ql); };
     // 1 · pelvis: drop for the lower foot and for the cut, shift sideways and forward into the swing
-    { const T = new V3(0, pl._pd - pl._cd, 0).addScaledVector(left, pl._sh).addScaledVector(f, pl._fw); if (T.lengthSq() > 1e-8) { const hw = B.Hips.getWorldPosition(new V3()).add(T); B.Hips.position.copy(B.Hips.parent.worldToLocal(hw)); B.Hips.updateWorldMatrix(false, true); wTrans(T); } }
+    { const T = new V3(0, pl._pd - pl._cd - (pl._land || 0), 0).addScaledVector(left, pl._sh).addScaledVector(f, pl._fw); if (T.lengthSq() > 1e-8) { const hw = B.Hips.getWorldPosition(new V3()).add(T); B.Hips.position.copy(B.Hips.parent.worldToLocal(hw)); B.Hips.updateWorldMatrix(false, true); wTrans(T); } }
     // 2 · hips turn with the swing (the whole upper body and the blade go with them)
-    let left2 = left; if (Math.abs(pl._tw) > .002) { const q = new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), pl._tw); const piv = B.Hips.getWorldPosition(new V3()); this.rotW(B.Hips, q); wRot(q, piv); left2 = left.clone().applyQuaternion(q);
-      if (B.Head) this.rotW(B.Head, new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), -pl._tw * .55)); }
+    // banking: the whole body tilts into the turn around her feet
+    if (Math.abs(pl._bank) > .002) { const q = new THREE.Quaternion().setFromAxisAngle(f, pl._bank); const piv = B.Hips.getWorldPosition(new V3()); this.rotW(B.Hips, q); wRot(q, piv); }
+    const twAll = pl._tw + runTw;
+    let left2 = left; if (Math.abs(twAll) > .002) { const q = new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), twAll); const piv = B.Hips.getWorldPosition(new V3()); this.rotW(B.Hips, q); wRot(q, piv); left2 = left.clone().applyQuaternion(q);
+      if (Math.abs(runTw) > .002 && B.Spine1) { const qc = new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), -runTw * 1.8); const pv = B.Spine1.getWorldPosition(new V3()); this.rotW(B.Spine1, qc); wRot(qc, pv); }
+      if (B.Head) this.rotW(B.Head, new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), -pl._tw * .55 + runTw * .8)); }
     // 3 · torso pitch: into a climb, back on a descent, over the cut
     if (Math.abs(lean) > .002 && B.Spine) { const q = new THREE.Quaternion().setFromAxisAngle(left2, lean); const piv = B.Spine.getWorldPosition(new V3()); this.rotW(B.Spine, q); wRot(q, piv); }
+    if (Math.abs(pl._hl) > .003 && B.Head) { const qh = new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), pl._hl); if (B.Neck) this.rotW(B.Neck, new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), pl._hl * .4)); this.rotW(B.Head, qh); }
     // 4 · legs: plant each foot on its own ground
     for (const side of ['Left', 'Right']) { const up = B[side + 'UpLeg'], lg = B[side + 'Leg'], ft = B[side + 'Foot']; if (!up || !lg) continue;
       const tgt = feet[side].clone(); tgt.y += off[side]; const hip = up.getWorldPosition(new V3()); const kn = new V3(), fo = new V3();
@@ -16822,6 +16840,8 @@ const Moves2 = {
       const sh = Input.keys.ShiftLeft || Input.keys.ShiftRight || (typeof Touch !== 'undefined' && Touch.sprint); if (!sh || this.state !== 'move') return u0.call(this, dt, cam);
       const st0 = this.st, ex0 = this.exhausted, sd0 = this.stDelay; this.exhausted = false; if (this.st <= 0) this.st = .001; u0.call(this, dt, cam);
       if (this.state === 'move' && this.speed > 6.5) { const regen = sd0 - dt <= 0 ? (ex0 ? 40 : 60) * dt : 0; this.st = Math.min(this.maxSt || 100, Math.max(this.st, st0 + regen)); this.stDelay = Math.max(0, sd0 - dt); this.exhausted = ex0 && this.st < 30; } };
+    // stamina lives on the second line under HP now: a failed dodge flashes that line
+    try { UI.flashStam = function () { const c = document.getElementById('vhSt'); if (c && c.animate) c.animate([{ filter: 'drop-shadow(0 0 6px #ff5a3a) brightness(1.8)' }, { filter: 'none' }], { duration: 420 }); }; } catch (e) {}
     // labels for the new moves
     try { Object.assign(ZH_DICT, { 'Air dash slash': '空中衝刺斬', 'Shoulder cleave': '衝肩斬', 'Flash cut': '一閃' }); } catch (e) {} } };
 window.__AZmoves2 = Moves2;
