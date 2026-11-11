@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.22.1</small>
+        <small>Rift Hunter field prototype · Build 3.23</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.22.1":"裂隙獵人 實地原型 · Build 3.22.1","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.23":"裂隙獵人 實地原型 · Build 3.23","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -16582,6 +16582,126 @@ const Snd = {
       h0(pl, kind, crit, big); Snd.play(big ? 'heavy' : 'slash', { gain: .35, rate: 1.2 }); }; } };
 window.__AZsnd = Snd;
 setTimeout(() => { try { Snd.hook(); } catch (e) { console.warn('snd', e); } }, 0);
+/* =====================================================================
+   BUILD 3.23 · THREE BLADES, THREE WAYS TO FIGHT
+   The blade class decides the whole moveset, the way each weapon in a hunting game plays like a different game:
+   · 大劍 Great Sword — slow, heavy, committed. An overhead cleave, a wide sweep, a crushing slam; hold the heavy to
+     charge a true charged slash through three levels. Big hitstop, big shake, she walks a little slower carrying it.
+   · 長劍 Long Sword — the Riftblade as it was: flowing cuts, spirit blades that build into the roundslash, iaido.
+   · 武士刀 Katana — fast and precise. Two snap draw-cuts and a lunging thrust that chain quickly; hold the heavy to
+     sheathe and release a charged iai flash that cuts straight through the line.
+   Six new blades (original designs): Emberjaw, Ashen Cleaver, Crimson Maw (great swords), Seraph Vow (long sword),
+   Kurogane, Hakugetsu (katanas). All are in the armoury from the start — equip with I / B.
+   ===================================================================== */
+const Arms = {
+  CLS: { great: '大劍 Great Sword', long: '長劍 Long Sword', katana: '武士刀 Katana' },
+  defs: null,
+  // scale every timing of a move to a new duration, then apply overrides
+  mk(src, dur, over = {}, poseFn) { const k = dur / src.dur; const d = JSON.parse(JSON.stringify({ ...src, keys: undefined })); d.keys = src.keys.map(x => ({ ...x, t: x.t * k, v: poseFn ? poseFn({ ...x.v }, x.t * k) : x.v }));
+    d.dur = dur; for (const f of ['chain', 'cancel', 'release', 'holdAt', 'at']) if (src[f] !== undefined) d[f] = src[f] * k; if (src.hit) d.hit = src.hit.map(x => x * k); if (src.hit2) d.hit2 = src.hit2.map(x => x * k); if (src.lunge) d.lunge = [src.lunge[0] * k, src.lunge[1] * k, src.lunge[2]]; if (src.spin) d.spin = src.spin.map(x => x * k);
+    return Object.assign(d, over); },
+  build() { if (this.defs) return this.defs; const L3 = PDEF.light3, L1 = PDEF.light1, L2 = PDEF.light2;
+    const two = (v, t) => Object.assign(v, { th: 1, cr: (v.cr || 0) + .1 });
+    const G = { ...PDEF }; delete G.light4; for (const k of ['spirit1', 'spirit2', 'spirit3', 'round']) delete G[k];
+    G.light1 = this.mk(L3, .95, { dmg: 56, stg: 22, stam: 0, reach: 3.7, arc: 1.2, hs: .11, shake: .2, big: true, snd: 'swingHeavy', lunge: [.24, .44, 1.1] }, two);
+    G.light2 = this.mk(L2, .9, { dmg: 50, stg: 18, stam: 0, reach: 3.8, arc: 2.3, hs: .1, shake: .18, big: true, snd: 'swingHeavy', lunge: [.12, .36, 1.2] }, two);
+    G.light3 = this.mk(L3, 1.25, { dmg: 90, stg: 34, stam: 0, reach: 3.9, arc: 1.1, hs: .15, shake: .42, big: true, snd: 'swingHeavy', lunge: [.3, .58, 1.4] }, (v, t) => two(v, t) && Object.assign(v, { cr: v.cr + (t > .35 && t < .7 ? .18 : 0) }));
+    { const k = 2.27; const keys = L3.keys.map(x => ({ ...x, t: Math.min(1.3, x.t * k), v: two({ ...x.v }) })).filter((x, i, a) => i === 0 || x.t > a[i - 1].t);
+      G.heavy = { dur: 1.3, holdAt: .5, hit: [.62, .76], chain: 1.0, cancel: .95, dmg: 100, stg: 40, stam: 0, lunge: [.56, .72, 1.4], reach: 4.0, arc: 1.3, hs: .16, shake: .5, big: true, charge: true, snd: 'swingHeavy', keys }; }
+    const K = { ...PDEF }; delete K.light4; for (const k of ['spirit1', 'spirit2', 'spirit3', 'round']) delete K[k];
+    K.light1 = this.mk(L1, .3, { dmg: 19, stg: 5, stam: 0, reach: 2.8, arc: 1.15, hs: .035, shake: .04, lunge: [.03, .13, 1.7] });
+    K.light2 = this.mk(L2, .3, { dmg: 21, stg: 5, stam: 0, reach: 2.8, arc: 1.15, hs: .035, shake: .04, lunge: [.03, .13, 1.6] });
+    { const B = P({}); const PULL = P({ g: [-0.24, 0.1, 0.0], d: [0.05, -0.05, 1], ty: -0.35, tp: .1, cr: .3, th: .25 }), THR = P({ g: [-0.04, 0.12, 0.64], d: [0, -0.04, 1], ty: .05, tp: .32, cr: .32, lg: 1, th: .2 });
+      K.light3 = { dur: .44, hit: [.12, .22], chain: .27, cancel: .25, dmg: 29, stg: 9, stam: 0, lunge: [.07, .21, 3.2], reach: 3.3, arc: .6, hs: .05, shake: .07, snd: 'swing',
+        keys: [{ t: 0, v: B }, { t: .08, e: 'in', v: PULL }, { t: .15, e: 'out', v: THR }, { t: .26, v: THR }, { t: .44, v: P({ g: [-0.1, 0.1, 0.42], d: [0.2, -0.3, 0.9], tp: .12, cr: .12 }) }] }; }
+    K.heavy = this.mk(PDEF.heavy, PDEF.heavy.dur * .78, { stam: 20 });
+    this.defs = { great: G, katana: K, long: PDEF }; return this.defs; },
+  SW: { great: { light1: { tilt: 1.25, dir: -1, r: 3.8, span: 2.0, dur: .3, w: .22 }, light2: { tilt: .05, dir: 1, r: 3.9, span: 2.6, dur: .3, w: .22 }, light3: { tilt: 1.35, dir: -1, r: 4.1, span: 2.2, dur: .34, w: .24 }, heavy: { tilt: 1.3, dir: -1, r: 4.2, span: 2.4, dur: .36, w: .26 } },
+    katana: { light1: { tilt: .3, dir: -1, r: 2.8, span: 1.6, dur: .13, w: .08 }, light2: { tilt: -.35, dir: 1, r: 2.8, span: 1.6, dur: .13, w: .08 }, light3: { tilt: 0, dir: 1, r: 3.3, span: .3, dur: .12, w: .06 } } },
+  // ---------------------------------------------------------------- the blades (original designs)
+  M(o) { return new THREE.MeshStandardMaterial(Object.assign({ roughness: .4, metalness: .8 }, o)); },
+  // a flat blade from (z, y) outline points, thickness along x
+  plate(pts, th, mat, bevel = .006) { const s = new THREE.Shape(); s.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) { const p = pts[i]; if (p.length === 4) s.quadraticCurveTo(p[2], p[3], p[0], p[1]); else s.lineTo(p[0], p[1]); } s.closePath();
+    const g = new THREE.ExtrudeGeometry(s, { depth: th, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 1, curveSegments: 10 }); g.translate(0, 0, -th / 2); g.rotateY(-Math.PI / 2); g.computeVertexNormals(); const m = new THREE.Mesh(g, mat); m.castShadow = true; return m; },
+  grip(z0, z1, r, mat, ringMat, rings = 3) { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.05, z1 - z0, 10).rotateX(Math.PI / 2).translate(0, 0, (z0 + z1) / 2), mat); g.add(c);
+    if (ringMat) for (let i = 0; i < rings; i++) { const z = z0 + (i + .5) * (z1 - z0) / rings; const t = new THREE.Mesh(new THREE.TorusGeometry(r * 1.12, r * .28, 5, 12).translate(0, 0, 0), ringMat); t.position.z = z; g.add(t); } return g; },
+  ART: {
+    emberjaw(A) { const g = new THREE.Group(); const steel = A.M({ color: 0x3b3735, roughness: .45, metalness: .7 }), rust = A.M({ color: 0x7a2412, roughness: .55, metalness: .5, emissive: 0x2a0600 }), dark = A.M({ color: 0x1b1817, roughness: .8, metalness: .2 }), bone = A.M({ color: 0xb9ab8e, roughness: .6, metalness: .1 });
+      const edge = []; for (let i = 0; i < 9; i++) { const z = 1.42 - i * .14; edge.push([z, -.15], [z - .05, -.205], [z - .1, -.15]); }
+      g.add(A.plate([[.16, .12], [1.4, .1], [1.66, -.02, 1.58, .1], ...edge, [.16, -.15]], .03, steel));
+      g.add(A.plate([[.22, -.1], [1.45, -.1], [1.62, -.03, 1.56, -.08], [1.45, -.15], [.22, -.15]], .036, rust, .003));
+      for (const s of [-1, 1]) { const sp = new THREE.Mesh(new THREE.ConeGeometry(.035, .22, 5), bone); sp.position.set(0, s * .2, .12); sp.rotation.x = s > 0 ? -.4 : .4 + Math.PI; g.add(sp); }
+      const guard = new THREE.Mesh(new THREE.TorusGeometry(.17, .03, 6, 14, Math.PI), dark); guard.rotation.set(0, Math.PI / 2, Math.PI / 2); guard.position.z = .13; g.add(guard);
+      g.add(A.grip(-.34, .1, .024, dark, rust, 4)); const pm = new THREE.Mesh(new THREE.ConeGeometry(.03, .12, 6).rotateX(-Math.PI / 2), bone); pm.position.z = -.4; g.add(pm);
+      return { g, tip: 1.66, base: .16, len: 1.5 }; },
+    ashen(A) { const g = new THREE.Group(); const steel = A.M({ color: 0x55575c, roughness: .5, metalness: .75 }), red = A.M({ color: 0x6e1a1a, roughness: .45, metalness: .6, emissive: 0x220303 }), strap = A.M({ color: 0x23201d, roughness: .9, metalness: .05 }), stud = A.M({ color: 0x8a8580, roughness: .4 });
+      g.add(A.plate([[.16, .15], [1.28, .16], [1.5, .24, 1.42, .18], [1.62, .06, 1.6, .2], [1.2, -.17, 1.5, -.1], [.16, -.17]], .034, steel));
+      g.add(A.plate([[.3, -.13], [1.2, -.13], [1.55, .02, 1.48, -.1], [1.2, -.18, 1.48, -.14], [.3, -.18]], .04, red, .003));
+      for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(.06, .36, .06), strap); b.position.set(0, -.005, .24 + i * .1); g.add(b); for (const s of [-1, 1]) { const d = new THREE.Mesh(new THREE.SphereGeometry(.012, 6, 4), stud); d.position.set(s * .034, .1, .24 + i * .1); g.add(d); } }
+      g.add(A.grip(-.36, .14, .026, strap, stud, 3)); const tas = new THREE.Mesh(new THREE.CylinderGeometry(.008, .002, .16, 4), strap); tas.position.set(0, .12, .5); tas.rotation.x = .9; g.add(tas);
+      return { g, tip: 1.62, base: .16, len: 1.46 }; },
+    maw(A) { const g = new THREE.Group(); const obs = A.M({ color: 0x141114, roughness: .3, metalness: .6 }), glow = new THREE.MeshStandardMaterial({ color: 0x3a0306, emissive: 0xff1a1a, emissiveIntensity: 1.1, roughness: .4 });
+      g.add(A.plate([[.16, .1], [.5, .12], [.62, .07], [1.1, .09], [1.25, .05], [1.68, .0], [1.3, -.1], [.9, -.12], [.7, -.08], [.4, -.13], [.16, -.11]], .036, obs));
+      g.add(A.plate([[.24, -.1], [.62, -.115], [.72, -.08], [1.28, -.09], [1.62, -.005], [1.28, -.07], [.72, -.06], [.24, -.08]], .042, glow, .002));
+      g.add(A.plate([[.3, .0], [1.2, .01], [1.25, .025], [.3, .02]], .044, glow, .001));
+      for (const [y, z, rx, l] of [[.22, .1, -.9, .3], [-.24, .12, .9 + Math.PI, .34], [.16, .2, -.5, .2], [-.18, .22, .5 + Math.PI, .2]]) { const s = new THREE.Mesh(new THREE.ConeGeometry(.04, l, 4), obs); s.position.set(0, y, z); s.rotation.x = rx; g.add(s); }
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(.045), glow); gem.position.z = .1; g.add(gem); g.add(A.grip(-.36, .06, .024, obs, glow, 2));
+      return { g, tip: 1.68, base: .16, len: 1.52 }; },
+    seraph(A) { const g = new THREE.Group(); const white = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: .25, metalness: .3, emissive: 0x3a3a40 }), gold = A.M({ color: 0xd4a640, roughness: .3, metalness: .95 }), gem = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xbfd8ff, emissiveIntensity: .8, roughness: .1 });
+      g.add(A.plate([[.14, .055], [.5, .07, .32, .075], [.8, .045], [1.12, 0, 1.0, .03], [.8, -.045, 1.0, -.03], [.5, -.07], [.14, -.055, .32, -.075]], .016, white));
+      g.add(A.plate([[.16, .03], [.5, .045, .32, .05], [.78, .025], [.95, 0], [.78, -.025], [.5, -.045], [.16, -.03, .32, -.05]], .02, gold, .002));
+      for (const s of [-1, 1]) { const c = new THREE.Mesh(new THREE.TorusGeometry(.09, .014, 6, 14, Math.PI * .8), gold); c.position.set(0, s * .1, .12); c.rotation.set(0, Math.PI / 2, s > 0 ? -.4 : Math.PI + .4); g.add(c); }
+      const gm = new THREE.Mesh(new THREE.SphereGeometry(.03, 10, 8), gem); gm.scale.set(.6, 1, 1); gm.position.z = .12; g.add(gm);
+      g.add(A.grip(-.16, .1, .018, white, gold, 2)); const pm = new THREE.Mesh(new THREE.OctahedronGeometry(.03), gold); pm.position.z = -.2; g.add(pm);
+      return { g, tip: 1.12, base: .14, len: .98 }; },
+    katana(A, dark) { const g = new THREE.Group(); const blade = dark ? A.M({ color: 0x16161a, roughness: .28, metalness: .6 }) : A.M({ color: 0xc9ccd3, roughness: .16, metalness: .95 });
+      const edgeM = dark ? A.M({ color: 0xb8bcc4, roughness: .2, metalness: .95 }) : A.M({ color: 0xf0f2f6, roughness: .1, metalness: 1, emissive: 0x222428 }); const silver = A.M({ color: 0xc8c9cc, roughness: .3, metalness: .95 }), wrap = A.M({ color: 0x15151a, roughness: .9, metalness: .05 });
+      const c = z => .085 * Math.pow((z - .12) / 1.22, 2); const sp = [], ed = []; for (let i = 0; i <= 14; i++) { const z = .12 + i / 14 * 1.12; sp.push([z, c(z) + .017]); ed.unshift([z, c(z) - .021]); }
+      g.add(A.plate([...sp, [1.36, c(1.36) - .002], ...ed], .01, blade, .003));
+      const hm = []; const he = []; for (let i = 0; i <= 14; i++) { const z = .16 + i / 14 * 1.06; hm.push([z, c(z) - .012]); he.unshift([z, c(z) - .021]); } g.add(A.plate([...hm, [1.33, c(1.33) - .006], ...he], .012, edgeM, .002));
+      const ts = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .012, 16).rotateX(Math.PI / 2), silver); ts.position.z = .11; g.add(ts);
+      for (let i = 0; i < 7; i++) { const a = (i / 6 - .5) * 2.2; const f = new THREE.Mesh(new THREE.ConeGeometry(.014, .11, 4), silver); f.position.set(0, Math.sin(a) * .06, .1 - Math.cos(a) * .02); f.rotation.x = Math.PI / 2 + a * .9; g.add(f); }
+      g.add(A.grip(-.42, .1, .017, wrap, silver, 5)); return { g, tip: 1.36, base: .12, len: 1.22 }; },
+    kurogane(A) { return A.ART.katana(A, true); }, hakugetsu(A) { return A.ART.katana(A, false); } },
+  NEW: {
+    gs_ember: { kind: 'weapon', type: 'longsword', cls: 'great', art: 'emberjaw', name: 'Emberjaw', atk: 150, crit: 0, rift: 0, tier: 2, edge: [3, .9, .3], desc: 'Great Sword · a saw-backed slab with a rusted red edge. Slow, heavy cuts; hold the heavy to charge.' },
+    gs_ashen: { kind: 'weapon', type: 'longsword', cls: 'great', art: 'ashen', name: 'Ashen Cleaver', atk: 168, crit: 0, rift: 8, tier: 3, edge: [2.6, .35, .3], desc: 'Great Sword · a hooked cleaver bound in old straps. Every swing ends something.' },
+    gs_maw: { kind: 'weapon', type: 'longsword', cls: 'great', art: 'maw', name: 'Crimson Maw', atk: 192, crit: 5, rift: 14, tier: 4, edge: [3, .22, .28], desc: 'Great Sword · black glass split by a living red seam.' },
+    ls_seraph: { kind: 'weapon', type: 'longsword', cls: 'long', art: 'seraph', name: 'Seraph Vow', atk: 140, crit: 10, rift: 6, tier: 3, edge: [3, 2.7, 1.8], desc: 'Long Sword · white steel in a gold frame. Flowing cuts, spirit blades, iaido.' },
+    kt_kuro: { kind: 'weapon', type: 'longsword', cls: 'katana', art: 'kurogane', name: 'Kurogane', atk: 98, crit: 22, rift: 0, tier: 2, edge: [2, 2.1, 2.6], desc: 'Katana · a black blade with a silver feathered guard. Fast draw-cuts, a lunging thrust, a charged iai.' },
+    kt_haku: { kind: 'weapon', type: 'longsword', cls: 'katana', art: 'hakugetsu', name: 'Hakugetsu', atk: 118, crit: 28, rift: 0, tier: 3, edge: [2.8, 2.8, 3], desc: 'Katana · moonlit steel. The fastest edge in the armoury.' } },
+  cache: {},
+  look(pl) { if (!pl || pl.isAI || pl.wtype !== 'longsword') return; const id = Gear.cur(pl).weapon, g = GEARDB[id]; const R = pl.rigs && pl.rigs[pl.charId]; if (!R || !R.models || !R.models.longsword) return; const M = R.models.longsword;
+    if (M.userData.base0 == null) { M.userData.base0 = M.userData.tip.clone(); M.userData.bs0 = M.userData.base.clone(); }
+    if (M.userData.armsArt) { M.remove(M.userData.armsArt); M.userData.armsArt = null; }
+    const body = M.children[0], edgeMesh = M.children.find(o => o.material === M.userData.glow); const prevArt = M.userData.art;
+    if (g && g.art && typeof g.art === 'string' && this.ART[g.art]) { let a = this.cache[g.art]; if (!a) a = this.cache[g.art] = this.ART[g.art](this);
+      if (body) body.visible = false; if (prevArt) prevArt.visible = false; M.add(a.g); M.userData.armsArt = a.g; M.scale.set(1, 1, 1);
+      M.userData.tip.set(0, 0, a.tip); M.userData.base.set(0, 0, a.base); if (edgeMesh) { edgeMesh.scale.set(g.cls === 'great' ? 2.2 : 1, g.cls === 'great' ? 2.4 : 1, a.len / .94); } }
+    else { if (body) body.visible = !prevArt; if (prevArt) prevArt.visible = true; M.userData.tip.copy(M.userData.base0); M.userData.base.copy(M.userData.bs0); if (edgeMesh) edgeMesh.scale.set(1, 1, 1); }
+    pl.tipL = M.userData.tip; pl.baseL = M.userData.base; },
+  setCls(pl, g) { const D = this.build(); const cls = (g && g.cls) || 'long'; pl.wcls = cls; pl.moves = D[cls] || PDEF;
+    pl.wlabels = { ...(CHARS.hunter.labels || {}), ...(cls === 'great' ? { light1: 'Overhead cleave', light2: 'Wide sweep', light3: 'Crushing slam', heavy: 'Charged slash' } : cls === 'katana' ? { light1: 'Draw cut', light2: 'Return cut', light3: 'Lunging thrust', heavy: 'Iai flash' } : {}) }; },
+  hook() { if (this._h) return; this._h = 1; Object.assign(GEARDB, this.NEW);
+    try { Object.assign(ZH_DICT, { 'Emberjaw': '燼顎', 'Ashen Cleaver': '灰燼斷刃', 'Crimson Maw': '緋紅獸口', 'Seraph Vow': '熾天誓約', 'Kurogane': '黑鋼', 'Hakugetsu': '白月',
+      'Great Sword · a saw-backed slab with a rusted red edge. Slow, heavy cuts; hold the heavy to charge.': '大劍 · 鋸齒刀背、鏽紅刃口。慢而重；按住重擊可以蓄力。',
+      'Great Sword · a hooked cleaver bound in old straps. Every swing ends something.': '大劍 · 纏住舊皮帶嘅鉤形斷刃。每一刀都會終結啲嘢。',
+      'Great Sword · black glass split by a living red seam.': '大劍 · 黑色玻璃般嘅刃身，中間裂開一道活嘅紅縫。',
+      'Long Sword · white steel in a gold frame. Flowing cuts, spirit blades, iaido.': '長劍 · 金框白鋼。流暢連斬、氣刃斬、居合。',
+      'Katana · a black blade with a silver feathered guard. Fast draw-cuts, a lunging thrust, a charged iai.': '武士刀 · 黑刃配銀羽刀鐔。快速拔刀斬、突刺、蓄力居合。',
+      'Katana · moonlit steel. The fastest edge in the armoury.': '武士刀 · 月光般嘅鋼。軍械庫入面最快嘅刀。',
+      'Overhead cleave': '上段劈斬', 'Wide sweep': '橫掃', 'Crushing slam': '重砸', 'Charged slash': '蓄力斬', 'Draw cut': '拔刀斬', 'Return cut': '回刀斬', 'Lunging thrust': '突刺', 'Iai flash': '居合一閃' }); } catch (e) {}
+    const P0 = Player.prototype; const sw0 = P0.setWeaponType; P0.setWeaponType = function (type, g) { sw0.call(this, type, g); if (!this.isAI && type === 'longsword') { try { Arms.setCls(this, g); } catch (e) { console.warn('arms cls', e); } } else this.wcls = null; };
+    const ta0 = P0.tryAction; P0.tryAction = function (type, dir) { if (!this.isAI && type === 'heavy' && this.wtype === 'longsword' && (this.wcls === 'great' || this.wcls === 'katana')) { const s = this.state, a = this.act; if (this.py > .05) return ta0.call(this, type, dir);
+        const free = s === 'move' || (s === 'dodge' && a && a.t >= .28); const chainOK = s === 'act' && a && /^light/.test(a.name) && a.t >= (a.def.chain ?? a.def.dur); if (free || chainOK) { this.combo = 0; return this.start('heavy', dir); } return false; }
+      return ta0.call(this, type, dir); };
+    // carrying a great sword: a little slower on foot
+    const u0 = P0.update; P0.update = function (dt, cam) { const x0 = this.pos.x, z0 = this.pos.z; u0.call(this, dt, cam); if (!this.isAI && this.wcls === 'great' && this.state === 'move' && (this.py || 0) < .05) { this.pos.x -= (this.pos.x - x0) * .12; this.pos.z -= (this.pos.z - z0) * .12; } };
+    const ga = Gear.apply.bind(Gear); Gear.apply = function (pl) { ga(pl); try { Arms.look(pl); } catch (e) { console.warn('arms look', e); } };
+    const os0 = Sfx.onSwing.bind(Sfx); Sfx.onSwing = function (pl, a, d) { const T = pl && pl.wcls && Arms.SW[pl.wcls]; if (!T) return os0(pl, a, d); const keep = Sfx.SW; Sfx.SW = { ...keep, ...T }; try { return os0(pl, a, d); } finally { Sfx.SW = keep; } }; },
+  tick() { if (this._given || Game.state !== 'playing' || !Gear || !Gear.owned) return; this._given = 1; for (const id in this.NEW) if (!(id in Gear.owned)) Gear.owned[id] = 0; try { Gear.apply(Game.player); } catch (e) {} } };
+window.__AZarms = Arms;
+setTimeout(() => { try { Arms.hook(); } catch (e) { console.warn('arms', e); } const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); try { Arms.tick(); } catch (e) {} }; }, 0);
 
 /* =====================================================================
    13. GAME — state, loop, flow
