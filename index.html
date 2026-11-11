@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.20.1</small>
+        <small>Rift Hunter field prototype · Build 3.21</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.20.1":"裂隙獵人 實地原型 · Build 3.20.1","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.21":"裂隙獵人 實地原型 · Build 3.21","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -16270,6 +16270,57 @@ window.__AZcamg = CamGuard;
 
 setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); const d = Math.min(.1, rdt || 0); try { Scarf.tick(d); } catch (e) { console.warn('scarf', e); } try { Accent.tick(d); } catch (e) { console.warn('accent', e); } };
   const cu = Cam.update.bind(Cam); Cam.update = function (rdt, dt) { cu(rdt, dt); try { CamGuard.update(Math.min(.1, rdt || 0)); } catch (e) {} }; }, 0);
+/* =====================================================================
+   BUILD 3.21 · HAND FEEL (from a play-through, measured frame by frame)
+   What was measured, and what changes:
+   · Turning: the hunter's body eased toward the stick with a long exponential tail — a 180° turn reached 90 % in
+     0.18 s but kept creeping for half a second, so she read as slidey. → She turns with a floor on angular speed
+     (no creeping tail) and a quicker ease; small corrections stay smooth.
+   · Jump: a press a few frames before landing was dropped (jump was never buffered), and stepping off a kerb then
+     pressing jump did nothing. → 0.15 s jump buffer, 0.12 s coyote time.
+   · Dodge: the last 0.16 s of a dodge ignored the stick. → Holding a direction after 0.34 s flows straight into
+     running (attacks and a second dodge already could).
+   · Hits on armoured beasts: their poise ignores light hits by design, so the blade met nothing — no shove, no
+     recoil. → Every hit jolts the body back along the blow (purely visual, a few centimetres, real-time so it
+     reads during hitstop); a landed hit always shows.
+   · Landing from a real fall gives a small camera dip, so height has weight.
+   ===================================================================== */
+const Feel = {
+  TURN_MIN: 11, TURN_K: 22, BUF: .15, COYOTE: .12,
+  // ---------------------------------------------------------------- player
+  wrap() { const P = Player.prototype; if (P._feel) return; P._feel = 1;
+    const up0 = P.update; P.update = function (dt, cam) { if (this.isAI) return up0.call(this, dt, cam);
+      const y0 = this.yaw, s0 = this.state, air0 = (this.py || 0) > .05, vy0 = this.vy || 0, gy0 = (this.gy || 0) + (this.py || 0);
+      up0.call(this, dt, cam);
+      try { Feel.post(this, dt, cam, y0, s0, air0, vy0, gy0); } catch (e) { if (!Feel._e) { Feel._e = 1; console.warn('feel', e); } } };
+    const ta0 = P.tryAction; P.tryAction = function (type, dir) { if (this.isAI) return ta0.call(this, type, dir);
+      if (type === 'jump') { let ok = ta0.call(this, type, dir);
+        // coyote: just walked off an edge (falling, never jumped) → still allowed for a moment
+        if (!ok && (this.py || 0) > .05 && !this._jumped && (this.vy || 0) <= .5 && Game.time - (this._groundT || -9) < Feel.COYOTE && this.state === 'move' && this.st > 4) {
+          this.vy = 7.4; this.spend && this.spend(6); try { Audio.play('dodge'); } catch (e) {} ok = true; }
+        if (ok) { this._jumped = true; this._jbuf = 0; } else this._jbuf = Game.time; return ok; }
+      return ta0.call(this, type, dir); }; },
+  post(pl, dt, cam, y0, s0, air0, vy0, gy0) {
+    const grounded = (pl.py || 0) <= .02 && (pl.vy || 0) <= 0;
+    if (grounded) { pl._groundT = Game.time; if (air0) { pl._jumped = false; const drop = (pl._apex || gy0) - ((pl.gy || 0)); if (drop > 2.2) { try { Cam.nudge && Cam.nudge(new V3(0, -1, 0), Math.min(.5, drop * .06)); Game.shake(Math.min(.25, drop * .03)); } catch (e) {} } pl._apex = null; } }
+    else { const y = (pl.gy || 0) + (pl.py || 0); pl._apex = Math.max(pl._apex ?? y, y); }
+    // buffered jump: pressed shortly before she could jump
+    if (pl._jbuf && Game.time - pl._jbuf < Feel.BUF && grounded && (pl.state === 'move' || pl.state === 'dodge')) { pl._jbuf = 0; pl.tryAction('jump', pl.inputDir(cam)); }
+    // dodge tail: a held direction flows into running
+    if (pl.state === 'dodge' && pl.act && !pl.act.air && pl.act.t >= .34) { const d = pl.inputDir(cam); if (d.lengthSq() > .25) { pl.state = 'move'; pl.act = null; pl.dodgeEnd = Game.time; } }
+    // turning: same target as the game, quicker ease and a floor on angular speed
+    if (pl.state === 'move' && s0 === 'move' && !pl.lt) { const d = pl.inputDir(cam); if (d.lengthSq() > .01) { const tgt = Math.atan2(d.x, d.z);
+        let diff = tgt - y0; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); const eased = diff * (1 - Math.exp(-Feel.TURN_K * dt)); const floor = Math.sign(diff) * Math.min(Math.abs(diff), Feel.TURN_MIN * dt);
+        const step = Math.abs(eased) > Math.abs(floor) ? eased : floor; pl.yaw = y0 + step; if (pl.root) pl.root.rotation.y = pl.yaw; } } },
+  // ---------------------------------------------------------------- enemies: every hit shows
+  hounds() { if (Hounds._feel) return; Hounds._feel = 1;
+    const d0 = Hounds.damage.bind(Hounds); Hounds.damage = function (h, dmg, from, o = {}) { const alive = h && h.alive; d0(h, dmg, from, o);
+      try { if (alive && h.alive && from) { const kx = h.pos.x - from.x, kz = h.pos.z - from.z, l = Math.hypot(kx, kz) || 1; h._jd = [kx / l, kz / l]; h._jt0 = performance.now(); h._jk = o.big ? 1.6 : 1; } } catch (e) {} };
+    const a0 = Hounds.animate.bind(Hounds); Hounds.animate = function (h, dt, crouch) { a0(h, dt, crouch);
+      if (h._jt0 && h.R && h.R.root && h.alive) { const u = (performance.now() - h._jt0) / 170; if (u >= 1) { h._jt0 = 0; return; }
+        const k = Math.sin(Math.PI * Math.min(1, u * 1.4)) * (1 - u) * .2 * h._jk; h.R.root.position.x += h._jd[0] * k; h.R.root.position.z += h._jd[1] * k; if (h.R.body) h.R.body.rotation.x -= k * .9; } }; } };
+window.__AZfeel = Feel;
+setTimeout(() => { try { Feel.wrap(); } catch (e) { console.warn('feel wrap', e); } try { Feel.hounds(); } catch (e) { console.warn('feel hounds', e); } }, 0);
 
 /* =====================================================================
    13. GAME — state, loop, flow
