@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.21</small>
+        <small>Rift Hunter field prototype · Build 3.22</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.21":"裂隙獵人 實地原型 · Build 3.21","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.22":"裂隙獵人 實地原型 · Build 3.22","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -16223,7 +16223,7 @@ const Accent = {
       const hs = new THREE.Sprite(new THREE.SpriteMaterial({ map: A.glowTex(), color: new THREE.Color(G[0] * .5, G[1] * .5, G[2] * .5), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); hs.scale.setScalar(1.3); hs.position.y = 1.62; g.add(hs); g.userData.halo = hs;
       return g; },
     fleck(A, p, G) { const g = new THREE.Group(); const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(...G) }); for (let i = 0; i < 4; i++) { const o = new THREE.Mesh(new THREE.OctahedronGeometry(.07 + Math.random() * .08), m); o.position.set((Math.random() - .5) * 1.4, 1 + Math.random() * 1.6, (Math.random() - .5) * 1.4); o.userData.y0 = o.position.y; g.add(o); (g.userData.fl = g.userData.fl || []).push(o); } return g; } },
-  build(W) { const C = this.CFG[W.id]; W._acc = []; if (!C || !C.kind) return; const lite = !!window.__AZlite; const S = this.spots(W, lite ? Math.ceil(C.n / 2) : C.n);
+  build(W) { const C = this.CFG[W.id]; W._acc = []; if (!C || !C.kind) { W._accBuilt = 1; return; } const lite = !!window.__AZlite; const S = this.spots(W, lite ? Math.ceil(C.n / 2) : C.n);
     for (const p of S) { const g = this.mk[C.kind](this, p, C.glow); g.position.set(p.x, p.y, p.z); g.rotation.y = p.r * 6.28; W.group.add(g);
       // a pool of the counter-colour on the ground around it
       const pool = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this.glowTex(), color: new THREE.Color(C.glow[0] * .32, C.glow[1] * .32, C.glow[2] * .32), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: true }));
@@ -16321,6 +16321,164 @@ const Feel = {
         const k = Math.sin(Math.PI * Math.min(1, u * 1.4)) * (1 - u) * .2 * h._jk; h.R.root.position.x += h._jd[0] * k; h.R.root.position.z += h._jd[1] * k; if (h.R.body) h.R.body.rotation.x -= k * .9; } }; } };
 window.__AZfeel = Feel;
 setTimeout(() => { try { Feel.wrap(); } catch (e) { console.warn('feel wrap', e); } try { Feel.hounds(); } catch (e) { console.warn('feel hounds', e); } }, 0);
+/* =====================================================================
+   BUILD 3.22 · THE EDGE LANDS ARE NOT EMPTY
+   Between the last street, plaza or platform and the cliff there was often a wide band of bare flat ground. Each world
+   now scatters clusters of its own wreckage through that band — a few big pieces you can read from afar, smaller
+   pieces around them, a scatter of grit on the ground — leaving lanes open between the clusters:
+     Ruined City   — toppled concrete slabs, broken columns, burnt car shells, rubble
+     Drift Downtown — road barriers, cones, crates, a fallen billboard frame
+     Arcane Realm  — violet crystal stands, leaning monoliths, broken arches
+     Mech Domain   — fallen pipes, standing gear wheels, scrap plates, crates
+     Demonic Realm — obsidian spikes, bone arches, lava rocks that still glow
+   Placement only uses open, flat ground 6–48 m inside the edge, clear of roads' features, enemy posts, survey sites,
+   rift anchors and the accent props. Big pieces are solid.
+   ===================================================================== */
+const EdgeKit = {
+  M: {},
+  mat(k, o) { return this.M[k] || (this.M[k] = new THREE.MeshStandardMaterial(Object.assign({ roughness: .9, metalness: 0 }, o))); },
+  geo(k) { const G = this.G || (this.G = {}); if (G[k]) return G[k]; let g;
+    switch (k) {
+      case 'box': g = new THREE.BoxGeometry(1, 1, 1); break;
+      case 'col': g = new THREE.CylinderGeometry(.36, .42, 1, 9); g.translate(0, .5, 0); break;
+      case 'rock': g = new THREE.DodecahedronGeometry(.5, 0); break;
+      case 'peb': g = new THREE.DodecahedronGeometry(.13, 0); break;
+      case 'cone': g = new THREE.ConeGeometry(.5, 1, 6); g.translate(0, .5, 0); break;
+      case 'tcone': g = new THREE.ConeGeometry(.2, .72, 10); g.translate(0, .36, 0); break;
+      case 'oct': g = new THREE.OctahedronGeometry(.5, 0); g.translate(0, .5, 0); break;
+      case 'pipe': g = new THREE.CylinderGeometry(.5, .5, 1, 14, 1, true); break;
+      case 'gear': g = new THREE.TorusGeometry(1, .26, 6, 14); break;
+      case 'arch': g = new THREE.TorusGeometry(1.7, .3, 6, 16, Math.PI * .72); break;
+      case 'rib': g = new THREE.TorusGeometry(1.5, .14, 5, 14, Math.PI); break;
+      default: g = new THREE.BoxGeometry(1, 1, 1); }
+    return G[k] = g; },
+  // a piece: [geometry, material key, material options, size ranges [sx,sy,sz] or scalar, pose, collider radius factor]
+  KITS: {
+    city: { grit: 0x4a4744, big: [
+        { g: 'box', m: 'slab', o: { color: 0x6c6862 }, s: [[2.2, 4.2], [.3, .55], [1.4, 3]], pose: 'tilt', r: .45 },
+        { g: 'col', m: 'col', o: { color: 0x7d776f }, s: [[.9, 1.3], [1.6, 4.2], [.9, 1.3]], pose: 'stand', r: .5 },
+        { g: 'col', m: 'col', o: { color: 0x7d776f }, s: [[.9, 1.2], [2.6, 4.6], [.9, 1.2]], pose: 'fallen', r: 0 },
+        { g: 'box', m: 'car', o: { color: 0x3a2e29, roughness: .8, metalness: .35 }, s: [[1.7, 1.9], [.9, 1.1], [3.8, 4.4]], pose: 'flat', r: .9 }],
+      small: [{ g: 'rock', m: 'rubble', o: { color: 0x5f5a54, flatShading: true }, s: [[.5, 1.3]], pose: 'free', r: 0 },
+        { g: 'box', m: 'slab', o: { color: 0x6c6862 }, s: [[.6, 1.4], [.2, .4], [.5, 1.2]], pose: 'free', r: 0 }] },
+    modern: { grit: 0x3f4248, big: [
+        { g: 'box', m: 'barrier', o: { color: 0x9b968d }, s: [[.55, .65], [.8, .9], [2, 2.4]], pose: 'flat', r: .55 },
+        { g: 'box', m: 'crate', o: { color: 0x485260, roughness: .7, metalness: .3 }, s: [[1, 1.6], [1, 1.4], [1, 2.4]], pose: 'flat', r: .7 },
+        { g: 'box', m: 'frame', o: { color: 0x2c2f35, metalness: .5, roughness: .6 }, s: [[3.5, 5], [2.2, 3], [.18, .25]], pose: 'tilt', r: 0 }],
+      small: [{ g: 'tcone', m: 'cone', o: { color: 0xd65a1e, roughness: .6 }, s: [[.9, 1.1]], pose: 'flatfree', r: 0 },
+        { g: 'rock', m: 'chunk', o: { color: 0x7d7a74, flatShading: true }, s: [[.4, 1]], pose: 'free', r: 0 }] },
+    arcane: { grit: 0x3b3546, big: [
+        { g: 'oct', m: 'crystal', o: { color: 0x3a2a5a, emissive: 0x6a3cff, emissiveIntensity: .45, roughness: .25, flatShading: true }, s: [[.5, .9], [1.8, 3.6], [.5, .9]], pose: 'stand', r: .45 },
+        { g: 'box', m: 'mono', o: { color: 0x3a3448, roughness: .95 }, s: [[1, 1.4], [3, 5], [.5, .8]], pose: 'lean', r: .6 },
+        { g: 'arch', m: 'archst', o: { color: 0x4a4458, flatShading: true }, s: [[1, 1.3]], pose: 'archf', r: 0 }],
+      small: [{ g: 'oct', m: 'crystal', o: {}, s: [[.25, .45], [.6, 1.3], [.25, .45]], pose: 'free', r: 0 },
+        { g: 'rock', m: 'runest', o: { color: 0x524a63, flatShading: true }, s: [[.4, .9]], pose: 'free', r: 0 }] },
+    mech: { grit: 0x4a4238, big: [
+        { g: 'pipe', m: 'pipe', o: { color: 0x5b6067, metalness: .6, roughness: .5, side: THREE.DoubleSide }, s: [[.8, 1.3], [3, 6], [.8, 1.3]], pose: 'fallen', r: 0 },
+        { g: 'gear', m: 'gear', o: { color: 0x6e5a42, metalness: .55, roughness: .6, flatShading: true }, s: [[1, 1.8]], pose: 'gear', r: .5 },
+        { g: 'box', m: 'mcrate', o: { color: 0x3d4148, metalness: .4, roughness: .6 }, s: [[1.2, 2], [1, 1.6], [1.2, 2.6]], pose: 'flat', r: .8 }],
+      small: [{ g: 'box', m: 'plate', o: { color: 0x6a645b, metalness: .5, roughness: .55 }, s: [[1, 2.2], [.08, .12], [.8, 1.6]], pose: 'tilt', r: 0 },
+        { g: 'rock', m: 'scrap', o: { color: 0x544c42, flatShading: true, metalness: .3 }, s: [[.4, .9]], pose: 'free', r: 0 }] },
+    demon: { grit: 0x2a1c1a, big: [
+        { g: 'cone', m: 'obs', o: { color: 0x1d1519, roughness: .28, metalness: .2, flatShading: true }, s: [[.7, 1.3], [2, 4.6], [.7, 1.3]], pose: 'lean', r: .5 },
+        { g: 'rib', m: 'bone', o: { color: 0xb8ab95, roughness: .7 }, s: [[1, 1.5]], pose: 'archf', r: 0 },
+        { g: 'rock', m: 'lava', o: { color: 0x2b1b16, emissive: 0x7a1c06, emissiveIntensity: .55, flatShading: true }, s: [[1.4, 2.4]], pose: 'free', r: .7 }],
+      small: [{ g: 'cone', m: 'obs', o: {}, s: [[.3, .5], [.6, 1.4], [.3, .5]], pose: 'lean', r: 0 },
+        { g: 'rock', m: 'lava', o: {}, s: [[.4, .8]], pose: 'free', r: 0 }] } },
+  rr(r, a) { return a[0] + r() * ((a[1] ?? a[0]) - a[0]); },
+  build(W) { const K = this.KITS[W.id]; W._edge = []; if (!K || !W._rim || typeof Rim === 'undefined') return; const R = W._rim, c = W._cg; if (!c) return;
+    let seed = 9001 + W.id.length * 131 + W.id.charCodeAt(0); const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const gh = (x, z) => Climb.gh(W, x, z), sd = (x, z) => Rim.sd(W, x, z);
+    const keep = []; const sp = W.spawn || { x: 0, z: 0 }; keep.push({ x: sp.x, z: sp.z, r: 12 });
+    for (const L of [W.survey, W.interactDefs, W.hounds]) for (const o of L || []) { const x = o.x ?? (o.pos && o.pos.x) ?? (o.at && o.at[0]) ?? (o.post && o.post[0]), z = o.z ?? (o.pos && o.pos.z) ?? (o.at && o.at[1]) ?? (o.post && o.post[1]); if (Number.isFinite(x) && Number.isFinite(z)) keep.push({ x, z, r: 9 }); }
+    try { for (const T of TOWERS) if (T.world === W.id) { const a = T.at(W); keep.push({ x: a.x, z: a.z, r: 10 }); } } catch (e) {}
+    for (const a of W._acc || []) keep.push({ x: a.p.x, z: a.p.z, r: 5 });
+    for (const q of W.colliders || []) keep.push({ x: q.x, z: q.z, r: (q.r || 1) + 2.5 });
+    const flat = (x, z, rad, h) => { for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283; const v = gh(x + Math.cos(a) * rad, z + Math.sin(a) * rad); if (!(Math.abs(v - h) < .45)) return false; } return true; };
+    const lite = !!window.__AZlite; const NC = lite ? 30 : 64; const clusters = [];
+    for (let t = 0; t < 16000 && clusters.length < NC; t++) { const x = R.X0 + rnd() * R.NX * Rim.MC, z = R.Z0 + rnd() * R.NZ * Rim.MC; const s = sd(x, z); if (s > -6 || s < -48) continue;
+      const h = gh(x, z); if (h < -100) continue; if (!flat(x, z, 2.5, h) || !flat(x, z, 5.5, h)) continue;
+      if (keep.some(k => Math.hypot(k.x - x, k.z - z) < k.r)) continue; if (clusters.some(q => Math.hypot(q.x - x, q.z - z) < 15)) continue; clusters.push({ x, z, h }); }
+    // pieces
+    const inst = {}; const put = (P, x, z, big) => { const h = gh(x, z); if (h < -100 || sd(x, z) > -2.5) return; const key = P.g + '|' + P.m; (inst[key] = inst[key] || { P, list: [] }).list.push({ x, z, h, big, r: rnd(), r2: rnd(), r3: rnd() }); };
+    const grit = []; for (const q of clusters) { const nb = 1 + Math.floor(rnd() * 2.2), ns = 3 + Math.floor(rnd() * 4);
+      for (let i = 0; i < nb; i++) { const a = rnd() * 6.283, d = rnd() * 2.2; put(K.big[Math.floor(rnd() * K.big.length)], q.x + Math.cos(a) * d, q.z + Math.sin(a) * d, true); }
+      for (let i = 0; i < ns; i++) { const a = rnd() * 6.283, d = 1.5 + rnd() * 4; put(K.small[Math.floor(rnd() * K.small.length)], q.x + Math.cos(a) * d, q.z + Math.sin(a) * d, false); }
+      for (let i = 0; i < (lite ? 8 : 18); i++) { const a = rnd() * 6.283, d = Math.sqrt(rnd()) * 6; const x = q.x + Math.cos(a) * d, z = q.z + Math.sin(a) * d; const h = gh(x, z); if (h > -100 && Math.abs(h - q.h) < .5) grit.push({ x, z, h, r: rnd() }); } }
+    const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), e = new THREE.Euler(), sc = new V3(), ps = new V3(); const shadows = !lite;
+    for (const key in inst) { const { P, list } = inst[key]; const mats = this.mat(P.m + '|' + W.id, Object.keys(P.o).length ? P.o : (this.KITS[W.id].big.concat(this.KITS[W.id].small).find(z => z.m === P.m && Object.keys(z.o).length) || { o: {} }).o);
+      const im = new THREE.InstancedMesh(this.geo(P.g), mats, list.length); im.castShadow = shadows; im.receiveShadow = true; im.userData.edgeKit = 1;
+      list.forEach((p, i) => { const S = P.s; const sx = this.rr(() => p.r, S[0]), sy = S[1] ? this.rr(() => p.r2, S[1]) : sx, sz = S[2] ? this.rr(() => p.r3, S[2]) : sx; sc.set(sx, sy, sz); let y = p.h; const yaw = p.r * 6.283;
+        switch (P.pose) {
+          case 'tilt': e.set((p.r2 - .5) * .7, yaw, (p.r3 - .5) * .7); y += sy * .25 - .1; break;
+          case 'stand': e.set((p.r2 - .5) * .12, yaw, (p.r3 - .5) * .12); y -= .15; break;
+          case 'lean': e.set((p.r2 - .5) * .45, yaw, (p.r3 - .5) * .45); y -= .25; break;
+          case 'fallen': e.set(Math.PI / 2, yaw, (p.r3 - .5) * .15, 'YXZ'); y += sx * .36; break;
+          case 'flat': e.set(0, yaw, (p.r3 - .5) * .08); y += sy * .5 - .05; break;
+          case 'flatfree': e.set(0, yaw, 0); break;
+          case 'gear': e.set((p.r2 - .5) * .3, yaw, 0); y += sx * .78; break;
+          case 'archf': e.set(0, yaw, (p.r3 - .5) * .3); y -= .2; break;
+          default: e.set(p.r * 6, p.r2 * 6, p.r3 * 6); y += sy * .2; }
+        if (P.pose === 'fallen') { qt.setFromEuler(new THREE.Euler(0, yaw, 0)).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, Math.PI / 2))); } else qt.setFromEuler(e);
+        ps.set(p.x, y, p.z); m4.compose(ps, qt, sc); im.setMatrixAt(i, m4);
+        if (p.big && P.r > 0) W.colliders.push({ x: p.x, z: p.z, r: Math.max(sx, sz) * P.r + .2, name: 'edgekit' }); });
+      im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere && im.computeBoundingSphere(); W.group.add(im); W._edge.push(im); }
+    if (grit.length) { const im = new THREE.InstancedMesh(this.geo('peb'), this.mat('grit|' + W.id, { color: K.grit, flatShading: true }), grit.length); im.receiveShadow = true; im.userData.edgeKit = 1;
+      grit.forEach((p, i) => { const s = .6 + p.r * 1.6; e.set(p.r * 5, p.r * 9, p.r * 3); qt.setFromEuler(e); ps.set(p.x, p.h + .03, p.z); sc.set(s, s * .55, s); m4.compose(ps, qt, sc); im.setMatrixAt(i, m4); });
+      im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere && im.computeBoundingSphere(); W.group.add(im); W._edge.push(im); }
+    W._edgeN = { clusters: clusters.length, pieces: Object.values(inst).reduce((a, b) => a + b.list.length, 0), grit: grit.length };
+    W._det = 0; },
+  tick() { const W = Game.world; if (!W || W._edgeBuilt) return; if (!W._rim) return; if (W._accBuilt == null && W._cg) return; W._edgeBuilt = 1; try { this.build(W); } catch (e) { console.warn('edgekit', e); } } };
+window.__AZedge = EdgeKit;
+setTimeout(() => { const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); try { EdgeKit.tick(); } catch (e) {} }; }, 0);
+/* =====================================================================
+   BUILD 3.22 · WALKING ON SLOPES
+   Before, the hunter's feet were planted on a flat plane at her own height: going up a ramp the front foot sank into
+   it, going down it hung in the air, and her body stayed bolt upright at the same speed either way.
+   · Each foot finds the ground under it; the pelvis drops to let the lower leg reach; the soles tilt with the slope.
+   · Uphill she leans into the climb and her steps shorten (about a third slower at a steep grade); downhill she
+     sits back a little. Stairs and kerbs (sudden steps) are not treated as slopes.
+   ===================================================================== */
+const Slope = {
+  _v: new V3(), _w: new V3(), _q: new THREE.Quaternion(), _p: new THREE.Quaternion(),
+  hAt(W, x, z) { try { const v = W.heightAt(x, z); return Number.isFinite(v) && v > -100 ? v : null; } catch (e) { return null; } },
+  // grade along a direction, ignoring sudden steps (kerbs, stairs) that are not slopes
+  grade(W, x, z, dx, dz) { const a = this.hAt(W, x + dx * .7, z + dz * .7), b = this.hAt(W, x - dx * .7, z - dz * .7), c = this.hAt(W, x, z); if (a == null || b == null || c == null) return 0;
+    const g1 = (a - c) / .7, g2 = (c - b) / .7; if (Math.abs(g1 - g2) > .6 || Math.abs(g1) > 1.1 || Math.abs(g2) > 1.1) return 0; return (g1 + g2) / 2; },
+  rotW(bone, q) { const t = this._q, p = this._p; bone.getWorldQuaternion(t); t.premultiply(q); bone.parent.getWorldQuaternion(p); bone.quaternion.copy(p.invert().multiply(t)); bone.updateWorldMatrix(false, true); },
+  aim(bone, child, target) { const a = bone.getWorldPosition(new V3()), c = child.getWorldPosition(new V3()); const from = c.sub(a).normalize(), to = target.clone().sub(a).normalize(); this.rotW(bone, new THREE.Quaternion().setFromUnitVectors(from, to)); },
+  wrap() { const P = Player.prototype; if (P._slope) return; P._slope = 1;
+    const u0 = P.update; P.update = function (dt, cam) { this._adt = dt; const x0 = this.pos.x, z0 = this.pos.z; u0.call(this, dt, cam); if (this.isAI) return; try { Slope.pace(this, dt, x0, z0); } catch (e) {} };
+    const a0 = P.animateGLB; P.animateGLB = function (p, moveAmt, sw, cw, dead) { a0.call(this, p, moveAmt, sw, cw, dead); if (this.isAI || dead) return; try { Slope.pose(this, moveAmt); } catch (e) { if (!Slope._e) { Slope._e = 1; console.warn('slope', e); } } }; },
+  // uphill: shorter strides — take back part of this frame's travel
+  pace(pl, dt, x0, z0) { const W = Game.world; if (!W || pl.state !== 'move' || (pl.py || 0) > .05) return; const mx = pl.pos.x - x0, mz = pl.pos.z - z0, m = Math.hypot(mx, mz); if (m < 1e-4) return;
+    const s = this.grade(W, pl.pos.x, pl.pos.z, mx / m, mz / m); pl._mg = damp(pl._mg || 0, s, 10, dt); const g = pl._mg; if (g <= .08) return;
+    const k = .34 * clamp((g - .08) / .55, 0, 1); pl.pos.x -= mx * k; pl.pos.z -= mz * k; },
+  pose(pl, moveAmt) { const W = Game.world, G = pl.glb; if (!W || !G || !G.bones) return; const B = G.bones; if (!B.Hips || !B.LeftFoot || !B.RightFoot) return;
+    const dt = Math.min(.05, pl._adt || .016); const root = pl.root; const grounded = (pl.py || 0) < .05 && pl.state !== 'climb' && pl.state !== 'dead' && pl.state !== 'down';
+    const f = fwd(pl.yaw), left = new V3(f.z, 0, -f.x); const gy = (pl.gy || 0) + (pl.py || 0);
+    pl._sg = damp(pl._sg || 0, grounded ? clamp(this.grade(W, pl.pos.x, pl.pos.z, f.x, f.z), -.8, .8) : 0, 8, dt); const s = pl._sg;
+    const feet = {}, off = {};
+    for (const side of ['Left', 'Right']) { const fw = B[side + 'Foot'].getWorldPosition(new V3()); feet[side] = fw; let o = 0; if (grounded) { const h = this.hAt(W, fw.x, fw.z); if (h != null && Math.abs(h - gy) < .6) o = clamp(h - gy, -.45, .45); }
+      const k = '_fo' + side; pl[k] = damp(pl[k] || 0, o, 18, dt); off[side] = pl[k]; }
+    const drop = Math.min(0, off.Left, off.Right); pl._pd = damp(pl._pd || 0, drop, 14, dt);
+    if (Math.abs(pl._pd) < .004 && Math.abs(s) < .02 && Math.abs(off.Left) < .004 && Math.abs(off.Right) < .004) return;
+    const hand0 = B.RightHand ? B.RightHand.getWorldPosition(new V3()) : null;
+    // pelvis
+    if (Math.abs(pl._pd) > .001) { const hw = B.Hips.getWorldPosition(new V3()); hw.y += pl._pd; B.Hips.position.copy(B.Hips.parent.worldToLocal(hw)); B.Hips.updateWorldMatrix(false, true); }
+    // lean: into the climb, sitting back going down
+    const mv = clamp(.35 + .65 * (moveAmt || 0), 0, 1); const lean = (s > 0 ? s * .42 : s * .2) * mv;
+    if (Math.abs(lean) > .002) { const q = new THREE.Quaternion().setFromAxisAngle(left, lean / 3); for (const n of ['Spine', 'Spine1', 'Spine2']) if (B[n]) this.rotW(B[n], q); }
+    // legs: plant each foot on its own ground
+    for (const side of ['Left', 'Right']) { const up = B[side + 'UpLeg'], lg = B[side + 'Leg'], ft = B[side + 'Foot']; if (!up || !lg) continue;
+      const tgt = feet[side].clone(); tgt.y += off[side]; const hip = up.getWorldPosition(new V3()); const kn = new V3(), fo = new V3();
+      ik2(hip, tgt, G.lu, G.ll, f.clone().add(new V3(0, .1, 0)), kn, fo); this.aim(up, lg, kn); this.aim(lg, ft, fo);
+      const fq = root.quaternion.clone().multiply(G.footQ[side]); ft.parent.getWorldQuaternion(this._p); ft.quaternion.copy(this._p.clone().invert().multiply(fq)); ft.updateWorldMatrix(false, true);
+      const tilt = -Math.atan(s) * .85; if (Math.abs(tilt) > .002) this.rotW(ft, new THREE.Quaternion().setFromAxisAngle(left, tilt)); }
+    // the weapon rides with the hand it was placed in
+    if (hand0 && pl.weapon && pl.weapon.parent === root) { const hand1 = B.RightHand.getWorldPosition(new V3()); const d = hand1.sub(hand0); if (d.lengthSq() > 1e-8) { d.applyQuaternion(root.quaternion.clone().invert()); pl.weapon.position.add(d); } } } };
+window.__AZslope = Slope;
+setTimeout(() => { try { Slope.wrap(); } catch (e) { console.warn('slope wrap', e); } }, 0);
 
 /* =====================================================================
    13. GAME — state, loop, flow
