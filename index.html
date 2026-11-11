@@ -16479,6 +16479,108 @@ const Slope = {
     if (hand0 && pl.weapon && pl.weapon.parent === root) { const hand1 = B.RightHand.getWorldPosition(new V3()); const d = hand1.sub(hand0); if (d.lengthSq() > 1e-8) { d.applyQuaternion(root.quaternion.clone().invert()); pl.weapon.position.add(d); } } } };
 window.__AZslope = Slope;
 setTimeout(() => { try { Slope.wrap(); } catch (e) { console.warn('slope wrap', e); } }, 0);
+/* =====================================================================
+   BUILD 3.22 · SOUND THAT LANDS
+   Why it sounded cheap: every sound was a raw oscillator or raw noise built live — buzzing sawtooth and square waves
+   with every harmonic at full strength, a "shing" made of a single triangle beep, hits that were one sine sweep plus
+   hiss, and a reverb that was plain white noise fading out (bright, metallic, hissy).
+   · Impacts are now pre-rendered once at start (offline, a few variants each) from many layers — a sharp transient,
+     a cut of shaped noise, a saturated body, a flesh thud, a sub drop, a short inharmonic steel ring, scattered
+     debris — so a light hit snaps, a heavy hit booms, a critical hit rings.
+   · Sword swings are a real air sweep that pans across the stereo field, no beep.
+   · Every sawtooth and square wave in the music and effects is replaced by a warm, rolled-off version of itself,
+     and each voice drifts a few cents like an analogue synth.
+   · A new reverb: stereo, with early reflections and a tail that darkens as it decays.
+   · The music bus gets a gentle stereo chorus, a little low-end warmth and its harsh top rounded off; the master
+     gets a soft high shelf and a limiter so loud moments stay clean.
+   ===================================================================== */
+const Snd = {
+  S: {}, ready: false, pending: 0,
+  // ---------------------------------------------------------------- warm waves
+  pw(c, type) { const k = type + (c === Audio.ctx ? '' : 'o'); this._pw = this._pw || new WeakMap(); let m = this._pw.get(c); if (!m) { m = {}; this._pw.set(c, m); } if (m[type]) return m[type];
+    const N = 48, re = new Float32Array(N), im = new Float32Array(N);
+    for (let n = 1; n < N; n++) { if (type === 'square' && n % 2 === 0) continue; const roll = Math.exp(-(n - 1) / (type === 'square' ? 9 : 13)); im[n] = (1 / n) * roll * (type === 'square' ? 1.1 : 1); }
+    return m[type] = c.createPeriodicWave(re, im, { disableNormalization: false }); },
+  warm(c) { if (c._warm) return; c._warm = 1; const D = Object.getOwnPropertyDescriptor(OscillatorNode.prototype, 'type'); const co = c.createOscillator.bind(c); const self = this;
+    c.createOscillator = function () { const o = co(); let ty = 'sine'; o.detune.value = (Math.random() - .5) * 5;
+      Object.defineProperty(o, 'type', { configurable: true, get() { return ty; }, set(v) { ty = v; if (v === 'sawtooth' || v === 'square') o.setPeriodicWave(self.pw(c, v)); else D.set.call(o, v); } }); return o; }; },
+  // ---------------------------------------------------------------- space
+  ir(c, dur = 2.4) { const sr = c.sampleRate, n = Math.floor(sr * dur), b = c.createBuffer(2, n, sr);
+    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); let lp = 0; const pre = Math.floor(sr * .018);
+      for (let i = pre; i < n; i++) { const u = (i - pre) / (n - pre); const a = Math.exp(-u * 5.2); const cut = .55 - .5 * u; lp += (Math.random() * 2 - 1 - lp) * cut; d[i] = lp * a * .9; }
+      for (let r = 0; r < 9; r++) { const at = Math.floor(sr * (.007 + r * .011 + Math.random() * .006)) + (ch ? 37 : 0); if (at < n) d[at] += (Math.random() < .5 ? -1 : 1) * (.5 - r * .045); } }
+    return b; },
+  space() { const A = Audio, c = A.ctx; if (!c || A._space) return; A._space = 1;
+    try { const conv = c.createConvolver(); conv.buffer = this.ir(c); const inG = c.createGain(); const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 180; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200;
+      const out = c.createGain(); out.gain.value = .36; inG.connect(hp); hp.connect(conv); conv.connect(lp); lp.connect(out); out.connect(A.master);
+      try { A.rev.disconnect(); } catch (e) {} A.rev = inG; } catch (e) { console.warn('rev', e); }
+    // master tone + limiter: master → shelf → (existing compressor) … insert before the destination
+    try { const sh = c.createBiquadFilter(); sh.type = 'highshelf'; sh.frequency.value = 7600; sh.gain.value = -3; const lo = c.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 110; lo.gain.value = 1.5;
+      const lim = c.createDynamicsCompressor(); lim.threshold.value = -4; lim.knee.value = 2; lim.ratio.value = 18; lim.attack.value = .002; lim.release.value = .12;
+      A.master.disconnect(); A.master.connect(lo); lo.connect(sh); const comp = c.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 10; comp.ratio.value = 3.5; comp.attack.value = .006; comp.release.value = .2;
+      sh.connect(comp); comp.connect(lim); lim.connect(c.destination); } catch (e) { console.warn('master', e); } },
+  musicBus() { const M = Music, c = Audio.ctx; if (!M.bus || M._chorus) return; M._chorus = 1;
+    try { const bus = M.bus; bus.disconnect(); const lo = c.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 150; lo.gain.value = 2.5; const hc = c.createBiquadFilter(); hc.type = 'lowpass'; hc.frequency.value = 6800; hc.Q.value = .5;
+      bus.connect(lo); lo.connect(hc); const dry = c.createGain(); dry.gain.value = .82; hc.connect(dry); dry.connect(Audio.master);
+      for (const [ms, rate, pan] of [[11, .31, -.7], [17, .23, .7]]) { const d = c.createDelay(.05); d.delayTime.value = ms / 1000; const l = c.createOscillator(); l.frequency.value = rate; const lg = c.createGain(); lg.gain.value = .0024; l.connect(lg); lg.connect(d.delayTime); l.start();
+        const g = c.createGain(); g.gain.value = .3; const p = c.createStereoPanner(); p.pan.value = pan; hc.connect(d); d.connect(g); g.connect(p); p.connect(Audio.master); } } catch (e) { console.warn('chorus', e); } },
+  // ---------------------------------------------------------------- offline sample design
+  nbuf(oc) { if (oc._nb) return oc._nb; const n = oc.sampleRate * 1, b = oc.createBuffer(2, n, oc.sampleRate); for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; } return oc._nb = b; },
+  shaper(oc, k) { const s = oc.createWaveShaper(), n = 1024, cv = new Float32Array(n); for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; cv[i] = Math.tanh(x * k) / Math.tanh(k); } s.curve = cv; s.oversample = '2x'; return s; },
+  envG(oc, t, a, peak, dec, hold = 0) { const g = oc.createGain(); g.gain.setValueAtTime(0, 0); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); if (hold) g.gain.setValueAtTime(peak, t + a + hold); g.gain.exponentialRampToValueAtTime(0.0001, t + a + hold + dec); return g; },
+  N(oc, out, t, dur, { type = 'bandpass', f0 = 1000, f1 = 1000, q = 1, peak = .5, a = .002, drive = 0, pan = 0, hold = 0 } = {}) { const s = oc.createBufferSource(); s.buffer = this.nbuf(oc); const f = oc.createBiquadFilter(); f.type = type; f.Q.value = q; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    const g = this.envG(oc, t, a, peak, dur, hold); let n = s; n.connect(f); n = f; if (drive) { const w = this.shaper(oc, drive); n.connect(w); n = w; } n.connect(g); let o = g; if (pan) { const p = oc.createStereoPanner(); p.pan.value = pan; g.connect(p); o = p; } o.connect(out); s.start(t, Math.random() * .5); s.stop(t + a + hold + dur + .05); return { f, g }; },
+  T(oc, out, t, dur, { type = 'sine', f0 = 100, f1 = 100, peak = .5, a = .002, drive = 0, hold = 0 } = {}) { const o = oc.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(10, f1), t + dur * .7);
+    const g = this.envG(oc, t, a, peak, dur, hold); let n = o; if (drive) { const w = this.shaper(oc, drive); o.connect(w); n = w; } n.connect(g); g.connect(out); o.start(t); o.stop(t + a + hold + dur + .05); },
+  ringP(oc, out, t, fs, dur, peak) { for (const f of fs) this.T(oc, out, t, dur * (.6 + Math.random() * .5), { f0: f, f1: f * .996, peak: peak * (.6 + Math.random() * .5) }); },
+  RECIPES: {
+    slash(S, oc, o, r) { S.N(oc, o, 0, .028, { type: 'highpass', f0: 3200, f1: 2600, peak: .9 }); S.N(oc, o, .002, .1, { f0: 3400 * r, f1: 900, q: 1.3, peak: .55, drive: 2.5 });
+      S.T(oc, o, 0, .17, { f0: 175 * r, f1: 52, peak: .95, drive: 1.8 }); S.N(oc, o, .004, .13, { type: 'lowpass', f0: 1100, f1: 220, peak: .5 });
+      S.ringP(oc, o, .004, [2650 * r, 3930 * r, 5180 * r], .26, .045); S.N(oc, o, .01, .2, { type: 'highpass', f0: 6500, f1: 7000, peak: .05 }); },
+    heavy(S, oc, o, r) { S.N(oc, o, 0, .035, { type: 'highpass', f0: 2800, f1: 2000, peak: 1 }); S.N(oc, o, .003, .2, { f0: 2500 * r, f1: 480, q: 1.1, peak: .65, drive: 3 });
+      S.T(oc, o, 0, .36, { f0: 128 * r, f1: 36, peak: 1, drive: 2.4 }); S.T(oc, o, .01, .55, { f0: 62, f1: 29, peak: .55 }); S.N(oc, o, .005, .32, { type: 'lowpass', f0: 2600, f1: 220, peak: .62, drive: 1.6 });
+      S.ringP(oc, o, .006, [1820 * r, 2710 * r, 3640 * r, 4890 * r], .55, .05); for (let i = 0; i < 5; i++) S.N(oc, o, .05 + Math.random() * .25, .03, { type: 'highpass', f0: 2600 + Math.random() * 3000, f1: 2400, peak: .12 + Math.random() * .1, pan: Math.random() * 1.4 - .7 }); },
+    crit(S, oc, o, r) { S.RECIPES.slash(S, oc, o, r); S.ringP(oc, o, .01, [3520 * r, 5280 * r, 7040 * r], .8, .07); S.N(oc, o, .02, .45, { type: 'highpass', f0: 7600, f1: 9000, peak: .06, a: .04 }); S.T(oc, o, 0, .3, { f0: 90, f1: 40, peak: .5 }); },
+    whoosh(S, oc, o, r) { const p = oc.createStereoPanner(); p.pan.setValueAtTime(-.55, 0); p.pan.linearRampToValueAtTime(.55, .22); p.connect(o);
+      S.N(oc, p, 0, .17, { f0: 700 * r, f1: 3200 * r, q: 2.2, peak: .4, a: .07 }); S.N(oc, p, .02, .14, { type: 'highpass', f0: 4200, f1: 6800, peak: .1, a: .06 }); S.T(oc, o, .03, .1, { f0: 160, f1: 90, peak: .07 }); },
+    whooshH(S, oc, o, r) { const p = oc.createStereoPanner(); p.pan.setValueAtTime(-.7, 0); p.pan.linearRampToValueAtTime(.7, .34); p.connect(o);
+      S.N(oc, p, 0, .3, { f0: 260 * r, f1: 1700 * r, q: 1.6, peak: .5, a: .12 }); S.N(oc, p, .05, .22, { type: 'highpass', f0: 3000, f1: 5200, peak: .1, a: .1 }); S.T(oc, o, .04, .3, { f0: 80, f1: 44, peak: .28, a: .06 }); },
+    clank(S, oc, o, r) { S.N(oc, o, 0, .02, { type: 'highpass', f0: 4000, f1: 3500, peak: .8 }); S.ringP(oc, o, 0, [1180 * r, 1830 * r, 2610 * r, 3720 * r, 5040 * r], .55, .09); S.T(oc, o, 0, .12, { f0: 240, f1: 120, peak: .35, drive: 1.5 }); },
+    hurt(S, oc, o, r) { S.T(oc, o, 0, .24, { f0: 140 * r, f1: 46, peak: .9, drive: 2.6 }); S.N(oc, o, 0, .16, { type: 'lowpass', f0: 1500, f1: 260, peak: .55, drive: 1.8 }); S.N(oc, o, .01, .12, { f0: 520, f1: 300, q: 3, peak: .3, drive: 3 }); },
+    slam(S, oc, o, r) { S.N(oc, o, 0, .05, { type: 'highpass', f0: 1800, f1: 1200, peak: .5 }); S.T(oc, o, 0, .9, { f0: 74 * r, f1: 27, peak: 1, drive: 1.6 }); S.N(oc, o, .01, .8, { type: 'lowpass', f0: 1600, f1: 90, peak: .7, drive: 1.4 });
+      for (let i = 0; i < 9; i++) S.N(oc, o, .08 + Math.random() * .6, .05, { type: 'bandpass', f0: 900 + Math.random() * 2400, f1: 700, q: 2, peak: .06 + Math.random() * .08, pan: Math.random() * 1.6 - .8 }); },
+    step(S, oc, o, r) { S.N(oc, o, 0, .06, { type: 'lowpass', f0: 900 * r, f1: 260, peak: .4 }); S.N(oc, o, .004, .04, { type: 'highpass', f0: 2600, f1: 2200, peak: .06 }); S.T(oc, o, 0, .08, { f0: 95 * r, f1: 50, peak: .3 }); } },
+  PEAK: { slash: .72, heavy: .92, crit: .8, whoosh: .42, whooshH: .58, clank: .5, hurt: .72, slam: .95, step: .3 },
+  norm(b, target) { let pk = 0; for (let c = 0; c < b.numberOfChannels; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) { const v = Math.abs(d[i]); if (v > pk) pk = v; } } if (pk < 1e-4) return; const k = target / pk; for (let c = 0; c < b.numberOfChannels; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] *= k; } },
+  DUR: { slash: .6, heavy: 1.1, crit: 1.1, whoosh: .4, whooshH: .6, clank: .8, hurt: .45, slam: 1.4, step: .2 },
+  async bake() { const A = Audio; if (!A.ctx || this._baking) return; this._baking = 1; const sr = A.ctx.sampleRate;
+    const jobs = []; for (const name in this.RECIPES) { this.S[name] = []; const nv = name === 'step' ? 4 : 3;
+      for (let v = 0; v < nv; v++) { const oc = new OfflineAudioContext(2, Math.ceil(sr * this.DUR[name]), sr); const out = oc.createGain(); out.gain.value = .9; const comp = oc.createDynamicsCompressor(); comp.threshold.value = -10; comp.ratio.value = 4; comp.attack.value = .001; comp.release.value = .08; out.connect(comp); comp.connect(oc.destination);
+        try { this.RECIPES[name](this, oc, out, .94 + Math.random() * .12); jobs.push(oc.startRendering().then(b => { Snd.norm(b, Snd.PEAK[name] || .7); this.S[name].push(b); }).catch(e => console.warn('bake', name, e))); } catch (e) { console.warn('recipe', name, e); } } }
+    await Promise.all(jobs); this.ready = true; },
+  // ---------------------------------------------------------------- playback
+  play(name, { gain = 1, rate = 1, pan = 0, wet = .16, at = 0 } = {}) { const A = Audio, c = A.ctx; const L = this.S[name]; if (!c || A.muted || !L || !L.length) return false; const now = c.currentTime; this._last = this._last || {}; if (!at && this._last[name] != null && now - this._last[name] < .03) return true; this._last[name] = now;
+    const s = c.createBufferSource(); s.buffer = L[Math.floor(Math.random() * L.length)]; s.playbackRate.value = rate * (.96 + Math.random() * .08); const g = c.createGain(); g.gain.value = gain;
+    let n = g; if (pan) { const p = c.createStereoPanner(); p.pan.value = clamp(pan, -1, 1); g.connect(p); n = p; } s.connect(g); A.out(n, wet); s.start(c.currentTime + .004 + at); return true; },
+  hook() { if (this._hooked) return; this._hooked = 1; const A = Audio;
+    const i0 = A.init.bind(A); A.init = function () { const had = !!this.ctx; i0(); if (!had && this.ctx) { try { Snd.warm(this.ctx); } catch (e) {} try { Snd.space(); } catch (e) {} Snd.bake(); } };
+    if (A.ctx) { try { this.warm(A.ctx); this.space(); } catch (e) {} this.bake(); }
+    const e0 = Music.ensure.bind(Music); Music.ensure = function () { const r = e0(); try { Snd.musicBus(); } catch (e) {} return r; };
+    const MAP = { hit: ['slash', .9], hitHeavy: ['heavy', 1], crit: ['crit', .95], swing: ['whoosh', .8], swingHeavy: ['whooshH', .9], clank: ['clank', .7], hurt: ['hurt', .85], slam: ['slam', 1] };
+    const p0 = A.play.bind(A); A.play = function (name, opt = {}) { const m = MAP[name]; if (m && Snd.ready && Snd.play(m[0], { gain: m[1] })) return; if (name === 'step' && Snd.ready && Snd.play('step', { gain: .55 * (opt.v || 1), wet: .05 })) return; return p0(name, opt); };
+    // the sword: a real air sweep instead of the beep; impacts from the baked layers
+    const sw0 = Sfx.swing.bind(Sfx); Sfx.swing = function (pl, a, d) { if (!Snd.ready || pl.wtype !== 'longsword') return sw0(pl, a, d); const n = a.name; const big = d.big || /heavy|spirit3|round|counter|plunge/.test(n);
+      const step = { light1: 1, light2: 1.08, light3: .86, air1: 1.04, air2: 1.12, air3: .9, spirit1: 1, spirit2: 1.06, spirit3: .82, round: .78, heavy: .8, counter: .9 }[n] || 1;
+      Snd.play(big ? 'whooshH' : 'whoosh', { gain: (pl === Game.player ? 1 : .45) * (big ? .95 : .8), rate: step });
+      if (/spirit|round/.test(n)) { const lv = Math.max(1, pl.spiritLv || 1); Audio.tone(Audio.ctx.currentTime + .005, .45, { type: 'sawtooth', f0: 110 * lv, f1: 240 * lv, peak: .04, lp: 1100, wet: .5 }); }
+      if (n === 'round') { Snd.play('whooshH', { gain: .7, rate: 1.15, at: .16 }); Sfx.ring(Audio.ctx.currentTime + .2, 1980, .9, .035, .7); } };
+    const h0 = Sfx.hit.bind(Sfx); Sfx.hit = function (pl, kind, crit, big) { if (!Snd.ready) return h0(pl, kind, crit, big);
+      const magic = /bolt|beam|sigil|briar|orb/.test(kind || '') || (pl.wtype !== 'longsword' && !/lash/.test((pl.act && pl.act.def && pl.act.def.fx) || ''));
+      if (pl.wtype === 'longsword' && !magic) { const g = pl === Game.player ? 1 : .5; Snd.play(big ? 'heavy' : crit ? 'crit' : 'slash', { gain: g }); if (big && crit) Snd.play('crit', { gain: .6 * g, rate: 1.1 }); return; }
+      // magic and whip keep their character, with a baked body underneath
+      h0(pl, kind, crit, big); Snd.play(big ? 'heavy' : 'slash', { gain: .35, rate: 1.2 }); }; } };
+window.__AZsnd = Snd;
+setTimeout(() => { try { Snd.hook(); } catch (e) { console.warn('snd', e); } }, 0);
 
 /* =====================================================================
    13. GAME — state, loop, flow
