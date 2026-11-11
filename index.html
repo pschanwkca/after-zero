@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.23</small>
+        <small>Rift Hunter field prototype · Build 3.24</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.23":"裂隙獵人 實地原型 · Build 3.23","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.24":"裂隙獵人 實地原型 · Build 3.24","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -16462,21 +16462,36 @@ const Slope = {
     for (const side of ['Left', 'Right']) { const fw = B[side + 'Foot'].getWorldPosition(new V3()); feet[side] = fw; let o = 0; if (grounded) { const h = this.hAt(W, fw.x, fw.z); if (h != null && Math.abs(h - gy) < .6) o = clamp(h - gy, -.45, .45); }
       const k = '_fo' + side; pl[k] = damp(pl[k] || 0, o, 18, dt); off[side] = pl[k]; }
     const drop = Math.min(0, off.Left, off.Right); pl._pd = damp(pl._pd || 0, drop, 14, dt);
-    if (Math.abs(pl._pd) < .004 && Math.abs(s) < .02 && Math.abs(off.Left) < .004 && Math.abs(off.Right) < .004) return;
-    const hand0 = B.RightHand ? B.RightHand.getWorldPosition(new V3()) : null;
-    // pelvis
-    if (Math.abs(pl._pd) > .001) { const hw = B.Hips.getWorldPosition(new V3()); hw.y += pl._pd; B.Hips.position.copy(B.Hips.parent.worldToLocal(hw)); B.Hips.updateWorldMatrix(false, true); }
-    // lean: into the climb, sitting back going down
-    const mv = clamp(.35 + .65 * (moveAmt || 0), 0, 1); const lean = (s > 0 ? s * .42 : s * .2) * mv;
-    if (Math.abs(lean) > .002) { const q = new THREE.Quaternion().setFromAxisAngle(left, lean / 3); for (const n of ['Spine', 'Spine1', 'Spine2']) if (B[n]) this.rotW(B[n], q); }
-    // legs: plant each foot on its own ground
+    // ---- the whole body behind the blade (3.24): hips turn with the swing, weight drops and shifts into it, the torso
+    // pitches over the cut, the head holds the target. Heavier blades move more of her.
+    const C = this.CK[pl.wcls || (pl.wtype === 'staff' ? 'staff' : 'long')] || this.CK.long; const P0 = pl.pose || {}; const a = pl.act;
+    const inAct = pl.state === 'act' && a && a.def && !a.def.air && grounded;
+    pl._tw = damp(pl._tw || 0, inAct ? clamp((P0.ty || 0) * C.tw, -.62, .62) : 0, 16, dt);
+    pl._sh = damp(pl._sh || 0, inAct ? (P0.ty || 0) * C.shift : 0, 14, dt);
+    pl._cd = damp(pl._cd || 0, inAct ? Math.max(0, P0.cr || 0) * C.drop : 0, 14, dt);
+    pl._fw = damp(pl._fw || 0, inAct ? (P0.lg || 0) * C.fw : 0, 12, dt);
+    pl._swl = damp(pl._swl || 0, inAct ? (P0.tp || 0) * C.lean : 0, 14, dt);
+    const mv = clamp(.35 + .65 * (moveAmt || 0), 0, 1); const slopeLean = (s > 0 ? s * .42 : s * .2) * mv; const lean = slopeLean + pl._swl;
+    if (Math.abs(pl._pd) < .004 && Math.abs(lean) < .004 && Math.abs(off.Left) < .004 && Math.abs(off.Right) < .004 && Math.abs(pl._tw) < .004 && Math.abs(pl._sh) < .003 && Math.abs(pl._cd) < .003 && Math.abs(pl._fw) < .003) return;
+    const W8 = pl.weapon && pl.weapon.parent === root ? pl.weapon : null; const rq = root.quaternion, rqi = rq.clone().invert();
+    const wTrans = T => { if (!W8) return; W8.position.add(T.clone().applyQuaternion(rqi)); };
+    const wRot = (q, P) => { if (!W8) return; const Pl = root.worldToLocal(P.clone()); const ql = rqi.clone().multiply(q).multiply(rq); W8.position.sub(Pl).applyQuaternion(ql).add(Pl); W8.quaternion.premultiply(ql); };
+    // 1 · pelvis: drop for the lower foot and for the cut, shift sideways and forward into the swing
+    { const T = new V3(0, pl._pd - pl._cd, 0).addScaledVector(left, pl._sh).addScaledVector(f, pl._fw); if (T.lengthSq() > 1e-8) { const hw = B.Hips.getWorldPosition(new V3()).add(T); B.Hips.position.copy(B.Hips.parent.worldToLocal(hw)); B.Hips.updateWorldMatrix(false, true); wTrans(T); } }
+    // 2 · hips turn with the swing (the whole upper body and the blade go with them)
+    let left2 = left; if (Math.abs(pl._tw) > .002) { const q = new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), pl._tw); const piv = B.Hips.getWorldPosition(new V3()); this.rotW(B.Hips, q); wRot(q, piv); left2 = left.clone().applyQuaternion(q);
+      if (B.Head) this.rotW(B.Head, new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), -pl._tw * .55)); }
+    // 3 · torso pitch: into a climb, back on a descent, over the cut
+    if (Math.abs(lean) > .002 && B.Spine) { const q = new THREE.Quaternion().setFromAxisAngle(left2, lean); const piv = B.Spine.getWorldPosition(new V3()); this.rotW(B.Spine, q); wRot(q, piv); }
+    // 4 · legs: plant each foot on its own ground
     for (const side of ['Left', 'Right']) { const up = B[side + 'UpLeg'], lg = B[side + 'Leg'], ft = B[side + 'Foot']; if (!up || !lg) continue;
       const tgt = feet[side].clone(); tgt.y += off[side]; const hip = up.getWorldPosition(new V3()); const kn = new V3(), fo = new V3();
       ik2(hip, tgt, G.lu, G.ll, f.clone().add(new V3(0, .1, 0)), kn, fo); this.aim(up, lg, kn); this.aim(lg, ft, fo);
       const fq = root.quaternion.clone().multiply(G.footQ[side]); ft.parent.getWorldQuaternion(this._p); ft.quaternion.copy(this._p.clone().invert().multiply(fq)); ft.updateWorldMatrix(false, true);
-      const tilt = -Math.atan(s) * .85; if (Math.abs(tilt) > .002) this.rotW(ft, new THREE.Quaternion().setFromAxisAngle(left, tilt)); }
-    // the weapon rides with the hand it was placed in
-    if (hand0 && pl.weapon && pl.weapon.parent === root) { const hand1 = B.RightHand.getWorldPosition(new V3()); const d = hand1.sub(hand0); if (d.lengthSq() > 1e-8) { d.applyQuaternion(root.quaternion.clone().invert()); pl.weapon.position.add(d); } } } };
+      const tilt = -Math.atan(s) * .85; if (Math.abs(tilt) > .002) this.rotW(ft, new THREE.Quaternion().setFromAxisAngle(left, tilt)); } },
+  // how much of her each blade moves: hip turn per unit of torso twist, weight drop per unit of crouch, sideways
+  // shift, forward step per unit of lunge, torso pitch per unit of pose pitch
+  CK: { great: { tw: .62, drop: .2, shift: .1, fw: .16, lean: .55 }, long: { tw: .36, drop: .09, shift: .06, fw: .1, lean: .3 }, katana: { tw: .3, drop: .07, shift: .07, fw: .14, lean: .26 }, staff: { tw: .22, drop: .05, shift: .04, fw: .06, lean: .2 } } };
 window.__AZslope = Slope;
 setTimeout(() => { try { Slope.wrap(); } catch (e) { console.warn('slope wrap', e); } }, 0);
 /* =====================================================================
@@ -16710,6 +16725,97 @@ const Arms = {
   tick() { if (this._given || Game.state !== 'playing' || !Gear || !Gear.owned) return; this._given = 1; for (const id in this.NEW) if (!(id in Gear.owned)) Gear.owned[id] = 0; try { Gear.apply(Game.player); } catch (e) {} } };
 window.__AZarms = Arms;
 setTimeout(() => { try { Arms.hook(); } catch (e) { console.warn('arms', e); } const tk = Game.tick.bind(Game); Game.tick = function (rdt, now) { tk(rdt, now); try { Arms.tick(); } catch (e) {} }; }, 0);
+/* =====================================================================
+   BUILD 3.24 · RUNS COOL
+   Measured on a Retina Mac (city, 1.5× resolution, 4× MSAA): a frame cost ~25 ms of GPU time, so the GPU sat at
+   100 % at ~44 fps the whole time — and on 120 Hz screens it would chase 120. 1 636 draw calls a frame, 700 of them
+   for rift hounds 120–300 m away, drawn piece by piece though fog hides them.
+   · Frame cap: 60 fps on computers, 30 on phones and tablets (Settings → the cap is stored per device). Frames in
+     between are skipped entirely, so a 120 Hz screen no longer doubles the work.
+   · Hounds beyond 90 m (60 m on phones) are not drawn or animated.
+   · Resolution and anti-aliasing: High renders at 1.25× (was 1.5×) with 2× MSAA (was 4×); Medium at 1×. The
+     automatic resolution now aims at the cap: whenever the frame rate falls under ~88 % of it, resolution steps
+     down until the GPU has headroom again, so it never runs flat out.
+   · Shadow maps redraw every second frame (every third on phones).
+   · The world map and the animated menu backgrounds no longer render the 3D scene or redraw every frame behind them.
+   ===================================================================== */
+const Cool = {
+  cap() { const s = store.get('fpsCap', 0); if (s) return s; return (GFX.mobile || window.__AZlite) ? 30 : 60; },
+  setCap(v) { store.set('fpsCap', v); },
+  rendered: 0, mapFrames: 0,
+  tier() { try { const T = GFX.tiers; T.high.pr = 1.25; T.high.ms = 2; T.medium.pr = 1; T.medium.minPr = .7; T.high.minPr = .8;
+      GFX.init(); renderer.setPixelRatio(GFX.pr); composer.setPixelRatio(GFX.pr);
+      for (const r of [composer.renderTarget1, composer.renderTarget2]) if (r.samples !== GFX.T.ms) { r.samples = GFX.T.ms; r.dispose(); } } catch (e) { console.warn('cool tier', e); } },
+  hook() { if (this._h) return; this._h = 1; this.tier();
+    // frame cap
+    const f0 = Game.frame.bind(Game); Game.frame = function (now) { const cap = Cool.cap(); const step = 1000 / cap;
+      if (Cool._t != null && now - Cool._t < step - 1.5) { requestAnimationFrame(t => this.frame(t)); return; }
+      Cool._t = Cool._t == null || now - Cool._t > step * 3 ? now : Cool._t + step * Math.floor((now - Cool._t) / step); f0(now); };
+    // dynamic resolution aims at the cap, not at 30
+    GFX.frame = function (dt, live) { if (!live) { this.acc = 0; this.n = 0; return; } this.acc += dt; this.n++; this.cool -= dt; if (this.acc < 1.5) return; this.fps = this.n / this.acc; this.acc = 0; this.n = 0; if (this.cool > 0) return;
+      const cap = Cool.cap(); if (this.fps < cap * .88 && this.pr > this.T.minPr + .001) { this.setPr(Math.max(this.T.minPr, this.pr - .1)); this.cool = 2.5; }
+      else if (this.fps > cap * .97 && this.pr < this.maxPr - .001) { this.setPr(Math.min(this.maxPr, this.pr + .05)); this.cool = 10; } };
+    // shadows every other frame; the map and menus do not render the scene behind them
+    try { renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true; } catch (e) {}
+    const r0 = composer.render.bind(composer); composer.render = function (d) { const st = Game.state;
+      if (st === 'map') { if (Cool.mapFrames++ > 2) return; } else Cool.mapFrames = 0;
+      Cool.rendered++; const every = (GFX.mobile || window.__AZlite) ? 3 : 2; if (Cool.rendered % every === 0 || Cool._shadowNow) { renderer.shadowMap.needsUpdate = true; Cool._shadowNow = false; }
+      return r0(d); };
+    // far hounds are neither drawn nor animated
+    const a0 = Hounds.animate.bind(Hounds); Hounds.animate = function (h, dt, crouch) { const R = h.R; if (!R || !R.root || h.state === 'dead') return a0(h, dt, crouch);
+      const lim = (GFX.mobile || window.__AZlite) ? 60 : 90; const dx = h.pos.x - camera.position.x, dz = h.pos.z - camera.position.z; const far = dx * dx + dz * dz > lim * lim;
+      if (far) { if (R.root.visible) R.root.visible = false; h._culled = true; return; } if (h._culled) { R.root.visible = true; h._culled = false; } return a0(h, dt, crouch); };
+    // menu backgrounds: no redraw while hunting
+    try { if (typeof VoidBG !== 'undefined') { const d0 = VoidBG.draw.bind(VoidBG); VoidBG.draw = function (ts) { if (Game.state === 'playing') { this.last = ts; return; } return d0(ts); }; } } catch (e) {}
+    // a world change or a teleport forces a fresh shadow map
+    const sw = Game.setWorld.bind(Game); Game.setWorld = function (...a) { const r = sw(...a); Cool._shadowNow = true; return r; }; } };
+window.__AZcool = Cool;
+setTimeout(() => { try { Cool.hook(); } catch (e) { console.warn('cool', e); } }, 0);
+/* =====================================================================
+   BUILD 3.24 · AIR AND DASH, PER BLADE · FREE SPRINT
+   · Sprinting (Shift) no longer costs stamina; only the dodge-dash does.
+   · Each blade class has its own air attacks:
+       大劍 — two slow aerial cleaves that hang you in the air, then the meteor plunge (hits much harder).
+       長劍 — the Riftblade's aerial cuts, unchanged.
+       武士刀 — a fast three-cut flurry that keeps you aloft, ending in a diving thrust.
+   · Dash slash (attack during or just after a dodge): 大劍 a shoulder-charge cleave, 長劍 the shadow slash,
+     武士刀 a flash cut that crosses five metres.
+   · Air dash slash (attack during an air dash): a horizontal cut that carries the dash's momentum, per blade.
+   ===================================================================== */
+const Moves2 = {
+  build() { const D = Arms.build(); if (D._m2) return D; D._m2 = 1; const G = D.great, K = D.katana, L = D.long; const mk = Arms.mk.bind(Arms);
+    const hang = (h, lift) => ({ air: true, hang: h, lift });
+    const two = v => Object.assign(v, { th: 1 });
+    // ---- great sword: heavy aerial cleaves, a stronger plunge
+    G.air1 = mk(G.light1, .62, { ...hang(10, 1.4), chain: .44, cancel: .4, dmg: 52, stg: 18, stam: 0, reach: 3.7, big: true, snd: 'swingHeavy', lunge: [.1, .3, 1] }, two);
+    G.air2 = mk(G.light2, .6, { ...hang(10, 1.2), chain: .44, cancel: .4, dmg: 48, stg: 16, stam: 0, reach: 3.8, arc: 2.3, big: true, snd: 'swingHeavy', lunge: [.08, .26, 1] }, two);
+    G.air3 = { ...G.plunge }; G.plunge = { ...G.plunge, gsPlunge: true };
+    G.dash = mk(G.light2, .78, { dmg: 64, stg: 26, stam: 0, reach: 3.8, arc: 2.2, hs: .12, shake: .32, big: true, snd: 'swingHeavy', lunge: [0, .3, 3.4] }, two);
+    G.airDash = mk(G.light2, .62, { ...hang(6, .6), dmg: 58, stg: 20, stam: 0, reach: 3.9, arc: 2.3, hs: .11, shake: .25, big: true, snd: 'swingHeavy', lunge: [0, .3, 4.2] }, two);
+    // ---- katana: aerial flurry, diving thrust, flash cuts
+    K.air1 = mk(K.light1, .26, { ...hang(14, 1.8), chain: .15, cancel: .14, dmg: 16, stg: 4, stam: 0, reach: 2.9, lunge: [.02, .12, 1.4] });
+    K.air2 = mk(K.light2, .26, { ...hang(14, 1.7), chain: .15, cancel: .14, dmg: 17, stg: 4, stam: 0, reach: 2.9, lunge: [.02, .12, 1.4] });
+    K.air3 = mk(K.light3, .4, { ...hang(4, -2.2), chain: .3, cancel: .28, dmg: 30, stg: 9, stam: 0, reach: 3.3, lunge: [.04, .2, 3.6] });
+    K.dash = mk(K.light1, .34, { dmg: 30, stg: 8, stam: 0, reach: 3, arc: 1.2, hs: .05, shake: .08, lunge: [0, .14, 5.2] });
+    K.airDash = mk(K.light1, .34, { ...hang(8, .5), dmg: 26, stg: 7, stam: 0, reach: 3, arc: 1.2, hs: .05, lunge: [0, .16, 5] });
+    // ---- long sword: its air moves stay; an air dash slash of its own
+    L.airDash = mk(L.light2 || PDEF.light2, .44, { ...hang(7, .7), dmg: 34, stg: 9, stam: 0, reach: 3.3, arc: 1.5, hs: .06, lunge: [0, .18, 4.4] });
+    Object.assign(CHARS.hunter.labels || {}, { airDash: 'Air dash slash' });
+    return D; },
+  hook() { if (this._h) return; this._h = 1; this.build(); const P0 = Player.prototype;
+    // air dash slash: attack while air-dashing
+    const aa0 = P0.airAttack; P0.airAttack = function (type, dir) { if (!this.isAI && type === 'light' && this.state === 'dodge' && this.act && this.act.air && this.moves.airDash && this.act.t > .04) return this.start('airDash', dir); return aa0.call(this, type, dir); };
+    // the great sword's plunge lands like a meteor
+    const pi0 = Combat.plungeImpact.bind(Combat); Combat.plungeImpact = function (pl) { if (pl && pl.wcls === 'great' && pl.act) { pl.act.cm = (pl.act.cm || 1) * 1.7; try { Game.shake(.6); Game.hitstop(.12); } catch (e) {} } return pi0(pl); };
+    // free sprint: Shift never drains stamina (and works even when a dodge spent it all); dodging still costs
+    const u0 = P0.update; P0.update = function (dt, cam) { if (this.isAI) return u0.call(this, dt, cam);
+      const sh = Input.keys.ShiftLeft || Input.keys.ShiftRight || (typeof Touch !== 'undefined' && Touch.sprint); if (!sh || this.state !== 'move') return u0.call(this, dt, cam);
+      const st0 = this.st, ex0 = this.exhausted, sd0 = this.stDelay; this.exhausted = false; if (this.st <= 0) this.st = .001; u0.call(this, dt, cam);
+      if (this.state === 'move' && this.speed > 6.5) { const regen = sd0 - dt <= 0 ? (ex0 ? 40 : 60) * dt : 0; this.st = Math.min(this.maxSt || 100, Math.max(this.st, st0 + regen)); this.stDelay = Math.max(0, sd0 - dt); this.exhausted = ex0 && this.st < 30; } };
+    // labels for the new moves
+    try { Object.assign(ZH_DICT, { 'Air dash slash': '空中衝刺斬', 'Shoulder cleave': '衝肩斬', 'Flash cut': '一閃' }); } catch (e) {} } };
+window.__AZmoves2 = Moves2;
+setTimeout(() => { try { Moves2.hook(); } catch (e) { console.warn('moves2', e); } }, 0);
 
 /* =====================================================================
    13. GAME — state, loop, flow
