@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.25</small>
+        <small>Rift Hunter field prototype · Build 3.26</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.25":"裂隙獵人 實地原型 · Build 3.25","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.26":"裂隙獵人 實地原型 · Build 3.26","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -16846,6 +16846,367 @@ const Moves2 = {
     try { Object.assign(ZH_DICT, { 'Air dash slash': '空中衝刺斬', 'Shoulder cleave': '衝肩斬', 'Flash cut': '一閃' }); } catch (e) {} } };
 window.__AZmoves2 = Moves2;
 setTimeout(() => { try { Moves2.hook(); } catch (e) { console.warn('moves2', e); } }, 0);
+/* =====================================================================
+   BUILD 3.26 · EVERY BLADE ITS OWN
+   Until now a blade's class decided everything: every long sword cut the same three cuts, drew the same iaido and
+   blinked the same Shadow Cut. Now each blade has a signature built from its name:
+   · an element: the colour of its swing arcs, its hit flares, its charge sparks and its afterimage, and a small
+     elemental burst on every hit (frost shards, embers, static, petals of light, ink…)
+   · a fighting style for the normal combo: flowing cuts, a thrusting line, a whirling finisher, a four-cut rapid
+     chain, slow heavy cuts, twin cuts, iai draws or a spinning great-sword sweep, at the blade's own tempo
+   · a finisher: the last cut of the combo releases the element (an ice fan, a lightning drop, a fire bloom…)
+   · its own charged heavy (hold right mouse) and its own Q, both named after the blade
+   A few blades changed class to match their names: Ridgebreaker, Summit Oath and Collapsing Star are great swords;
+   Nightfang, Mistcutter, Ravine Whisper and Eclipse Fang are katanas.
+   ===================================================================== */
+const Sig = {
+  // element palettes · t trail, h hit, c crit, g afterimage, m spike material kind
+  E: {
+    steel: { t: [2.5, 2.5, 2.8], h: [3, 2.7, 2.7], c: [3, .7, .55], g: [.8, .9, 1.4], m: 'steel' },
+    shadow: { t: [1.3, .55, 2.6], h: [1.8, .8, 3], c: [3, 1.4, 3], g: [.7, .3, 1.5], m: 'dark' },
+    fire: { t: [3, 1.05, .3], h: [3, 1.4, .45], c: [3, 2.4, 1.1], g: [1.6, .5, .15], m: 'ember' },
+    frost: { t: [1.3, 2.3, 3], h: [1.8, 2.6, 3], c: [2.8, 3, 3], g: [.7, 1.2, 1.7], m: 'ice' },
+    thunder: { t: [2.2, 2.3, 3.2], h: [2.6, 2.6, 3.2], c: [3, 3, 1.6], g: [1, 1.1, 1.8], m: 'steel' },
+    star: { t: [3, 2.7, 2], h: [3, 2.9, 2.4], c: [2.4, 2.6, 3], g: [1.4, 1.3, 1], m: 'glass' },
+    water: { t: [.5, 1.9, 3], h: [.9, 2.3, 3], c: [2.4, 3, 3], g: [.3, .9, 1.6], m: 'ice' },
+    wind: { t: [1.6, 3, 2.2], h: [2, 3, 2.5], c: [2.8, 3, 2.8], g: [.8, 1.5, 1.1], m: 'glass' },
+    earth: { t: [2.4, 1.55, .75], h: [2.8, 1.9, 1], c: [3, 2.4, 1.4], g: [1.2, .8, .4], m: 'rock' },
+    glass: { t: [2.6, 2.9, 3.1], h: [2.8, 3, 3.2], c: [3, 2.2, 3], g: [1.3, 1.5, 1.7], m: 'glass' },
+    neon: { t: [3, .4, 2.6], h: [3, .7, 2.8], c: [.6, 3, 3], g: [1.6, .2, 1.4], m: 'glass' },
+    holy: { t: [3, 2.6, 1.6], h: [3, 2.8, 2], c: [3, 3, 2.6], g: [1.6, 1.4, .9], m: 'glass' },
+    void: { t: [1.5, .8, 3], h: [1.9, 1.1, 3], c: [3, 2.2, 3], g: [.8, .4, 1.6], m: 'dark' },
+    rift: { t: [.7, 2.3, 3], h: [1, 2.5, 3], c: [3, 1.6, 2.8], g: [.4, 1.2, 1.6], m: 'glass' },
+    blood: { t: [3, .25, .3], h: [3, .4, .4], c: [3, 1.6, 1.4], g: [1.6, .1, .15], m: 'dark' },
+    ash: { t: [2.2, 1.7, 1.4], h: [2.6, 1.8, 1.3], c: [3, 1.3, .5], g: [1, .8, .7], m: 'rock' },
+    moss: { t: [.9, 2.7, 1.2], h: [1.2, 2.8, 1.4], c: [2.6, 3, 1.6], g: [.4, 1.3, .6], m: 'thorn' },
+    aurora: { t: [.8, 3, 2], h: [1.4, 3, 2.4], c: [2.4, 1, 3], g: [.4, 1.5, 1.2], m: 'glass' },
+    mist: { t: [1.9, 2.05, 2.3], h: [2.3, 2.4, 2.6], c: [3, 3, 3], g: [1, 1.05, 1.2], m: 'ice' },
+    time: { t: [2.6, 2.3, 1.5], h: [2.8, 2.6, 1.8], c: [1.6, 2.8, 3], g: [1.3, 1.1, .7], m: 'steel' },
+    moon: { t: [2.4, 2.5, 3], h: [2.7, 2.8, 3], c: [3, 3, 3], g: [1.1, 1.2, 1.6], m: 'glass' } },
+  // per blade: class, combo style, tempo, element, finisher, heavy [tech, EN, ZH], Q [tech, EN, ZH]
+  W: {
+    ls_iron: { cls: 'long', st: 'flow', sp: 1, el: 'steel', fin: 'flare', H: ['iaido', 'Vow Draw', '誓約拔刀'], Q: ['shadow', 'Shadow Cut', '影斬'] },
+    ls_night: { cls: 'katana', st: 'flash', sp: 1.06, el: 'shadow', fin: 'fangs', H: ['fangs', 'Night Fangs', '夜牙連射'], Q: ['blink', 'Fang Hunt', '獵牙瞬殺'] },
+    ls_breach: { cls: 'long', st: 'twin', sp: 1, el: 'rift', fin: 'wave', H: ['crescent', 'Moon Breach', '破月波'], Q: ['well', 'Breach Gate', '裂隙之門'] },
+    ls_zero: { cls: 'long', st: 'heavy', sp: .96, el: 'time', fin: 'echo', H: ['rail', 'Meridian Line', '子午一線'], Q: ['echo', 'Zero Hour', '零時回響'] },
+    ls_verdant: { cls: 'long', st: 'flow', sp: 1, el: 'moss', fin: 'spikes', H: ['lance', 'Moss Rise', '苔棘破土'], Q: ['roots', 'Overgrowth', '萬藤蔓生'] },
+    ls_neon: { cls: 'long', st: 'rapid', sp: 1.1, el: 'neon', fin: 'flare', H: ['shards', 'Neon Shatter', '霓虹碎裂'], Q: ['ribbon', 'Afterglow', '殘光迴旋'] },
+    ls_frost: { cls: 'long', st: 'thrust', sp: 1, el: 'frost', fin: 'spikes', H: ['lance', 'Rime Lance', '霜之槍'], Q: ['tide', 'Winter Veil', '冬之帷幕'] },
+    ls_kaitec: { cls: 'long', st: 'rapid', sp: 1.06, el: 'ash', fin: 'sparks', H: ['wire', 'Ash Snare', '灰線縛'], Q: ['cyclone', 'Cinder Storm', '餘燼風暴'] },
+    ls_umbra: { cls: 'katana', st: 'iai', sp: 1, el: 'void', fin: 'implode', H: ['well', 'Eclipse', '日蝕'], Q: ['blink', 'Umbra Step', '影步七殺'] },
+    ls_aurora: { cls: 'long', st: 'whirl', sp: 1, el: 'aurora', fin: 'ribbon', H: ['ribbon', 'Aurora Sweep', '極光橫掃'], Q: ['pillar', 'Aurora Curtain', '極光帷幕'] },
+    vx_blade: { cls: 'long', st: 'heavy', sp: .98, el: 'void', fin: 'implode', H: ['crescent', 'Requiem Arc', '鎮魂弧'], Q: ['well', 'Nexus Collapse', '聯結崩塌'] },
+    vs_maul: { cls: 'great', st: 'crush', sp: 1, el: 'void', fin: 'implode', H: ['well', 'Gravity Fall', '重力墜擊'], Q: ['meteor', 'Collapsing Star', '星之坍縮'] },
+    ls_rail: { cls: 'long', st: 'thrust', sp: 1.02, el: 'thunder', fin: 'bolt', H: ['rail', 'Rail Shot', '軌道砲'], Q: ['thunder', 'Signal Storm', '訊號風暴'] },
+    ls_starfall: { cls: 'long', st: 'flow', sp: 1, el: 'star', fin: 'star', H: ['crescent', 'Comet Arc', '彗星弧'], Q: ['meteor', 'Starfall', '星墜'] },
+    ls_lakelight: { cls: 'long', st: 'twin', sp: 1.02, el: 'water', fin: 'splash', H: ['tide', 'Lake Ripple', '湖光漣漪'], Q: ['pillar', 'Lantern Lake', '燈湖'] },
+    ls_stillwater: { cls: 'long', st: 'flow', sp: .98, el: 'water', fin: 'splash', H: ['iaido', 'Mirror Draw', '鏡水拔刀'], Q: ['tide', 'Stillwater', '止水'] },
+    ls_mist: { cls: 'katana', st: 'flash', sp: 1.1, el: 'mist', fin: 'sparks', H: ['blink', 'Mist Step', '霧步'], Q: ['echo', 'Thousand Mists', '千霧斬'] },
+    ls_dawn: { cls: 'long', st: 'heavy', sp: 1, el: 'fire', fin: 'bloom', H: ['nova', 'Harbor Flare', '港灣曙焰'], Q: ['pillar', 'Daybreak', '破曉'] },
+    ls_ember: { cls: 'long', st: 'whirl', sp: 1.02, el: 'fire', fin: 'bloom', H: ['nova', 'Ember Burst', '餘燼爆'], Q: ['meteor', 'Last Ember', '最後的火種'] },
+    ls_cairn: { cls: 'great', st: 'crush', sp: .96, el: 'earth', fin: 'spikes', H: ['quake', 'Summit Fall', '山巔墜'], Q: ['pillar', 'Cairn Oath', '石塚之誓'] },
+    ls_ravine: { cls: 'katana', st: 'crescent', sp: 1.08, el: 'wind', fin: 'wave', H: ['crescent', 'Ravine Gale', '峽谷疾風'], Q: ['cyclone', 'Whispering Storm', '低語風暴'] },
+    ls_static: { cls: 'long', st: 'rapid', sp: 1.08, el: 'thunder', fin: 'bolt', H: ['thunder', 'Thunderclap', '雷鳴'], Q: ['wire', 'Stormthread', '雷絲'] },
+    ls_reaper: { cls: 'long', st: 'whirl', sp: 1, el: 'shadow', fin: 'fangs', H: ['maw', 'Reaping Jaws', '收割之顎'], Q: ['fangs', 'Murder of Crows', '鴉群'] },
+    ls_spur: { cls: 'great', st: 'spin', sp: 1, el: 'earth', fin: 'spikes', H: ['quake', 'Ridgebreak', '斷脊'], Q: ['lance', 'Ridge Spires', '山脊尖塔'] },
+    ls_mainspring: { cls: 'long', st: 'twin', sp: 1.04, el: 'time', fin: 'echo', H: ['echo', 'Rewind', '倒轉'], Q: ['ribbon', 'Mainspring', '發條迴旋'] },
+    ls_void: { cls: 'long', st: 'thrust', sp: 1, el: 'glass', fin: 'shards', H: ['shards', 'Glass Burst', '玻璃迸裂'], Q: ['lance', 'Driftglass Spires', '浮璃尖塔'] },
+    ls_breach2: { cls: 'long', st: 'heavy', sp: .98, el: 'rift', fin: 'implode', H: ['maw', 'Reaver Bite', '掠奪之咬'], Q: ['rail', 'Breach Lance', '裂隙長槍'] },
+    ls_polaris: { cls: 'long', st: 'flow', sp: 1.02, el: 'moon', fin: 'star', H: ['pillar', 'North Star', '北極光柱'], Q: ['meteor', 'Polar Rain', '極星雨'] },
+    ls_sirius: { cls: 'long', st: 'heavy', sp: 1, el: 'star', fin: 'bloom', H: ['rail', 'Dog Star', '天狼一閃'], Q: ['nova', 'Sirius Nova', '天狼新星'] },
+    ls_altair: { cls: 'long', st: 'whirl', sp: 1.04, el: 'holy', fin: 'flare', H: ['crescent', 'Eagle Arc', '鷹翼弧'], Q: ['ribbon', 'Wings of Altair', '牛郎之翼'] },
+    ls_horizon: { cls: 'long', st: 'thrust', sp: 1, el: 'holy', fin: 'wave', H: ['rail', 'Horizon Line', '地平線'], Q: ['crescent', 'Far Horizon', '遠方'] },
+    gs_ember: { cls: 'great', st: 'cleave', sp: 1, el: 'fire', fin: 'bloom', H: ['nova', 'Emberjaw Crush', '燼顎碎'], Q: ['quake', 'Magma Rend', '熔岩裂地'] },
+    gs_ashen: { cls: 'great', st: 'spin', sp: 1, el: 'ash', fin: 'sparks', H: ['quake', 'Ashfall', '灰燼墜落'], Q: ['shards', 'Cinder Cleave', '燼刃斷'] },
+    gs_maw: { cls: 'great', st: 'crush', sp: 1, el: 'blood', fin: 'implode', H: ['maw', 'Crimson Bite', '緋紅之咬'], Q: ['well', 'Hungering Maw', '飢餓之口'] },
+    ls_seraph: { cls: 'long', st: 'flow', sp: 1, el: 'holy', fin: 'flare', H: ['pillar', 'Seraph Light', '熾天之光'], Q: ['blink', 'Six Wings', '六翼'] },
+    kt_kuro: { cls: 'katana', st: 'iai', sp: 1, el: 'steel', fin: 'sparks', H: ['iaido', 'Black Iai', '黑鋼居合'], Q: ['echo', 'Kurogane Hundred', '黑鋼百斬'] },
+    kt_haku: { cls: 'katana', st: 'crescent', sp: 1.08, el: 'moon', fin: 'wave', H: ['crescent', 'White Moon', '白月'], Q: ['blink', 'Moonlit Flash', '月下一閃'] }},
+  // the finisher and style names, for the gear card
+  STYLE: { flow: ['Flowing cuts', '流水連斬'], thrust: ['Thrusting line', '突刺連擊'], whirl: ['Whirling finish', '迴旋終結'], rapid: ['Four-cut rapid chain', '四段快斬'], heavy: ['Slow heavy cuts', '沉重劈斬'], twin: ['Twin cuts', '雙刃連斬'],
+    flash: ['Flash draws', '閃擊拔刀'], iai: ['Iai draws', '居合連斬'], crescent: ['Crescent cuts', '新月斬'], cleave: ['Overhead cleaves', '上段劈斬'], spin: ['Spinning sweep', '旋風橫掃'], crush: ['Crushing blows', '粉碎重擊'] },
+  EL: { steel: ['Steel', '鋼'], shadow: ['Shadow', '暗影'], fire: ['Fire', '火'], frost: ['Frost', '冰霜'], thunder: ['Thunder', '雷'], star: ['Star', '星'], water: ['Water', '水'], wind: ['Wind', '風'], earth: ['Earth', '地'],
+    glass: ['Glass', '琉璃'], neon: ['Neon', '霓虹'], holy: ['Light', '光'], void: ['Void', '虛空'], rift: ['Rift', '裂隙'], blood: ['Blood', '血'], ash: ['Ash', '灰燼'], moss: ['Moss', '苔'], aurora: ['Aurora', '極光'], mist: ['Mist', '霧'], time: ['Time', '時'], moon: ['Moon', '月'] },
+  of(id) { const s = this.W[id]; if (s) return s; const g = GEARDB[id]; return g && g.type === 'longsword' ? { cls: g.cls || 'long', st: g.cls === 'great' ? 'cleave' : g.cls === 'katana' ? 'flash' : 'flow', sp: 1, el: 'steel', fin: 'flare', H: ['iaido', 'Iaido', '居合'], Q: ['shadow', 'Shadow Cut', '影斬'] } : null; },
+  // ---------------------------------------------------------------- small helpers
+  gy(x, z) { const W = Game.world; try { const h = W && W.heightAt ? W.heightAt(x, z) : 0; return Number.isFinite(h) ? h : 0; } catch (e) { return 0; } },
+  at(pl, d, side = 0) { const f = fwd(pl.yaw); const x = pl.pos.x + f.x * d + f.z * side, z = pl.pos.z + f.z * d - f.x * side; return new V3(x, this.gy(x, z), z); },
+  col(pl, k = 'h') { return (pl._sig && pl._sig.E[k]) || pl.C.hitCol; },
+  tgt(pl, range) { const T = Combat.aimTarget(pl, range, pl.yaw); if (T) { const p = T.boss ? T.part.w.clone() : T.h.pos.clone(); return { T, p: new V3(p.x, this.gy(p.x, p.z), p.z), y: T.boss ? T.part.w.y : this.gy(p.x, p.z) + .8 }; } return null; },
+  // area damage: the nearest boss part in reach once, every hound in the radius, breakables
+  hit(pl, p, r, dmg, stg, seen, o = {}) { let any = false; const B = Game.boss; const y = p.y;
+    if (B.alive && !seen.has('boss')) { let bp = null, bd = 1e9; for (const pt of B.parts) { if (pt.w.y - pt.r > y + (o.tall || 3.2)) continue; const d = Math.hypot(pt.w.x - p.x, pt.w.z - p.z) - pt.r; if (d < r && d < bd) { bd = d; bp = pt; } }
+      if (bp) { seen.add('boss'); any = true; Combat.applyToBoss(pl, bp, dmg, stg, { hs: o.hs ?? .08, shake: o.shake ?? .25, big: true }, 'sig'); } }
+    const n0 = seen.size; Hounds.hitRadius(p, r, dmg * (o.hk || 1.4), seen, pl); if (seen.size > n0) any = true;
+    try { for (const d of Destructibles.near(p, r)) if (!seen.has(d)) { seen.add(d); Destructibles.damage(d, dmg, pl.pos, 'player'); } } catch (e) {}
+    return any; },
+  mats: {},
+  addMat(col, op = 1) { const k = col.join(',') + op; if (this.mats[k]) return this.mats[k].clone(); return (this.mats[k] = new THREE.MeshBasicMaterial({ color: new THREE.Color(...col), transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })).clone(); },
+  solid(kind, col) { const k = 's' + kind + col.join(','); if (this.mats[k]) return this.mats[k];
+    const base = { ice: [.55, .8, 1], rock: [.32, .27, .22], glass: [.85, .9, 1], dark: [.08, .06, .12], thorn: [.12, .2, .1], ember: [.18, .08, .05], steel: [.5, .52, .56] }[kind] || [.5, .5, .5];
+    const m = new THREE.MeshStandardMaterial({ color: new THREE.Color(...base), emissive: new THREE.Color(...col.map(v => v * (kind === 'rock' ? .12 : .35))), roughness: kind === 'glass' || kind === 'ice' ? .15 : .8, metalness: .1, transparent: kind === 'glass' || kind === 'ice', opacity: kind === 'glass' || kind === 'ice' ? .85 : 1, flatShading: true });
+    return this.mats[k] = m; },
+  cast(update, dispose) { Game.casts.push({ update, dispose: dispose || (() => {}) }); },
+  // ---------------------------------------------------------------- visual primitives
+  geo: {},
+  g(name, make) { return this.geo[name] || (this.geo[name] = make()); },
+  // a cluster of crystal/rock/thorn spikes bursting from the ground, then sinking
+  spikes(p, s, kind, col, n = 4, life = .9) { const g = new THREE.Group(); g.position.set(p.x, this.gy(p.x, p.z), p.z); scene.add(g); const cone = this.g('cone', () => new THREE.ConeGeometry(1, 1, kind === 'rock' ? 4 : 5)); const mat = this.solid(kind, col);
+    for (let i = 0; i < n; i++) { const m = new THREE.Mesh(cone, mat); const sx = rand(.12, .22) * s; m.userData.h = rand(.9, 1.9) * s; m.scale.set(sx, .01, sx); m.position.set(rand(-.45, .45) * s, 0, rand(-.45, .45) * s); m.rotation.set(rand(-.45, .45), rand(0, 3), rand(-.45, .45)); g.add(m); }
+    FX.sparks.emit(_a.set(p.x, g.position.y + .3, p.z), 8, { speed: 5, color: col, life: .4, size: .07, gravity: -12, up: 3 }); FX.smoke.emit(_a.set(p.x, g.position.y + .2, p.z), 2, { speed: 1.4, color: [.3, .28, .28], life: .9, size: .8, gravity: .3, grow: 1.4, alpha: .35 });
+    let t = 0; this.cast(dt => { t += dt; const u = t < .08 ? t / .08 : t > life ? Math.max(0, 1 - (t - life) / .35) : 1; for (const m of g.children) { m.scale.y = Math.max(.01, m.userData.h * u); m.position.y = m.scale.y * .42; } return t < life + .35; }, () => scene.remove(g)); },
+  // a jagged lightning bolt from the sky
+  bolt(p, col, h = 14) { const pts = []; let x = p.x + rand(-1.5, 1.5), z = p.z + rand(-1.5, 1.5); const y0 = p.y; for (let i = 0; i <= 9; i++) { const k = i / 9; pts.push(new V3(x + (p.x - x) * k + rand(-.5, .5) * (1 - k * k), y0 + h * (1 - k), z + (p.z - z) * k + rand(-.5, .5) * (1 - k * k))); }
+    const cam = camera.position; const pos = new Float32Array(pts.length * 6); const w = .16;
+    pts.forEach((q, i) => { const dx = cam.x - q.x, dz = cam.z - q.z, l = Math.hypot(dx, dz) || 1; const sx = -dz / l * w, sz = dx / l * w; pos.set([q.x - sx, q.y, q.z - sz, q.x + sx, q.y, q.z + sz], i * 6); });
+    const idx = []; for (let i = 0; i < pts.length - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx); const mat = this.addMat(col); const m = new THREE.Mesh(geo, mat); scene.add(m);
+    const core = new THREE.Mesh(geo, this.addMat([3, 3, 3])); core.scale.set(1, 1, 1); scene.add(core);
+    Game.flashLight(_a.set(p.x, p.y + 2, p.z), col.map(v => v / 3), 60, .18); FX.shock(p, 3, col.map(v => v * .7), .3); FX.sparks.emit(_a.set(p.x, p.y + .3, p.z), 22, { speed: 7, color: col, life: .35, size: .06, gravity: -8, up: 2 });
+    let t = 0; this.cast(dt => { t += dt; const k = Math.max(0, 1 - t / .3); mat.opacity = k * (Math.random() < .3 ? .4 : 1); core.material.opacity = Math.max(0, 1 - t / .12); return t < .3; }, () => { scene.remove(m); scene.remove(core); geo.dispose(); mat.dispose(); core.material.dispose(); }); },
+  // a column of light
+  pillar(p, col, r = 1.2, h = 16, life = .6) { const geo = this.g('pillar', () => new THREE.CylinderGeometry(1, 1, 1, 20, 1, true).translate(0, .5, 0)); const mat = this.addMat(col, .9); const m = new THREE.Mesh(geo, mat); m.position.copy(p); scene.add(m);
+    const core = new THREE.Mesh(geo, this.addMat([3, 3, 3], .9)); core.position.copy(p); scene.add(core); FX.shock(p, r * 2.6, col.map(v => v * .7), .45); Game.flashLight(_a.set(p.x, p.y + 3, p.z), col.map(v => v / 3), 70, .3);
+    let t = 0; this.cast(dt => { t += dt; const u = Math.min(1, t / .1), k = t < life ? 1 : Math.max(0, 1 - (t - life) / .3); m.scale.set(r * (1.3 - .3 * u) * k + .01, h * u, r * (1.3 - .3 * u) * k + .01); core.scale.set(r * .3 * k + .01, h * u, r * .3 * k + .01); mat.opacity = .55 * k; core.material.opacity = .9 * k;
+      if (Math.random() < dt * 40) FX.sparks.emit(_a.set(p.x + rand(-r, r), p.y + rand(0, 4), p.z + rand(-r, r)), 1, { speed: 1, color: col, life: .6, size: .07, gravity: -3 }); return t < life + .3; }, () => { scene.remove(m); scene.remove(core); mat.dispose(); core.material.dispose(); }); },
+  // a crescent that flies forward and cuts what it crosses
+  wave(pl, o) { const col = o.col, f = fwd(pl.yaw + (o.yaw || 0)); const start = pl.pos.clone().addScaledVector(f, 1); start.y = (pl.gy || 0) + (pl.py || 0) + 1.1;
+    const geo = this.g('cres', () => new THREE.TorusGeometry(1.6, .09, 5, 28, Math.PI)); const mat = this.addMat(col); const m = new THREE.Mesh(geo, mat); m.position.copy(start); m.rotation.set(0, pl.yaw + (o.yaw || 0), Math.PI / 2 + (o.tilt || 0)); m.scale.setScalar(o.s || 1); scene.add(m);
+    const inner = new THREE.Mesh(geo, this.addMat([3, 3, 3], .8)); inner.scale.setScalar(.82); m.add(inner); const seen = new Set(); let d = 0; const range = o.range || 16, sp = o.speed || 24;
+    this.cast(dt => { const st = sp * dt; m.position.addScaledVector(f, st); d += st; const k = Math.max(0, 1 - d / range); mat.opacity = k; inner.material.opacity = k * .8; m.scale.setScalar((o.s || 1) * (1 + d * .04));
+      if (Math.random() < .6) FX.sparks.emit(m.position, 2, { speed: 1.5, color: col, life: .3, size: .08, gravity: 0, jitter: 1 });
+      this.hit(pl, m.position, 1.7 * (o.s || 1), o.dmg, o.stg, seen, { hs: .06, shake: .2 }); return d < range; }, () => { scene.remove(m); mat.dispose(); inner.material.dispose(); }); },
+  // a falling star / fireball
+  meteor(pl, p, col, dmg, stg, delay = 0, s = 1) { const geo = this.g('met', () => new THREE.SphereGeometry(.35, 10, 8)); const mat = this.addMat([3, 3, 3]); const m = new THREE.Mesh(geo, mat); m.scale.setScalar(s); const tail = new THREE.Mesh(this.g('tail', () => new THREE.CylinderGeometry(.02, .35, 5, 8, 1, true).translate(0, 2.5, 0)), this.addMat(col, .7)); m.add(tail);
+    const from = new V3(p.x - 6, p.y + 22, p.z - 3); let t = -delay, landed = false; m.visible = false; scene.add(m); const dir = p.clone().sub(from).normalize(); tail.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir.clone().negate());
+    this.cast(dt => { t += dt; if (t < 0) return true; m.visible = !landed; const u = Math.min(1, t / .32); m.position.lerpVectors(from, p, u); if (Math.random() < .7) FX.sparks.emit(m.position, 2, { speed: 1, color: col, life: .35, size: .1, gravity: 0 });
+      if (!landed && u >= 1) { landed = true; m.visible = false; FX.shock(p, 3.4 * s, col.map(v => v * .8), .45); FX.sparks.emit(_a.set(p.x, p.y + .4, p.z), 30, { speed: 9, color: col, life: .5, size: .08, gravity: -12, up: 3 }); FX.smoke.emit(_a.set(p.x, p.y + .3, p.z), 4, { speed: 2, color: [.3, .26, .28], life: 1.2, size: 1.2, gravity: .4, grow: 1.6, alpha: .4 });
+        Game.flashLight(_a.set(p.x, p.y + 1.5, p.z), col.map(v => v / 3), 50, .25); Game.shake(.22 * s); Audio.play('explode'); Sig.hit(pl, p.clone().setY(p.y + 1), 2.6 * s, dmg, stg, new Set(), { hs: .06, shake: .3 }); try { FX.decal('crack', p, { r: 1.6 * s, life: 5, color: new THREE.Color(...col.map(v => v * .4)) }); } catch (e) {} }
+      return t < .9; }, () => { scene.remove(m); mat.dispose(); tail.material.dispose(); }); },
+  // a ring that sweeps outward along the ground
+  ring(pl, p, col, R, dmg, stg, dur = .45) { const geo = this.g('ring', () => new THREE.RingGeometry(.86, 1, 48).rotateX(-Math.PI / 2)); const mat = this.addMat(col); const m = new THREE.Mesh(geo, mat); m.position.set(p.x, p.y + .15, p.z); scene.add(m); const seen = new Set();
+    let t = 0; this.cast(dt => { t += dt; const u = Math.min(1, t / dur); const r = .5 + (R - .5) * (1 - (1 - u) * (1 - u)); m.scale.setScalar(r); mat.opacity = 1 - u; if (u < 1) { const q = p.clone(); for (let i = 0; i < 6; i++) { const a = Math.random() * 6.283; q.set(p.x + Math.sin(a) * r, p.y + .3, p.z + Math.cos(a) * r); FX.sparks.emit(q, 1, { speed: 1.2, color: col, life: .3, size: .08, gravity: -2 }); } }
+      for (const h of Hounds.list) if (h.alive && !seen.has(h) && Math.abs(hdist(h.pos, p) - r) < 1.2) { seen.add(h); Hounds.damage(h, dmg * 1.4, p, { big: true, pl }); }
+      const B = Game.boss; if (B.alive && !seen.has('boss') && hdist(B.pos, p) - B.bodyR < r) { seen.add('boss'); let bp = B.parts[0], bd = 1e9; for (const pt of B.parts) { const d = hdist(pt.w, p); if (d < bd && pt.w.y - pt.r < p.y + 3.2) { bd = d; bp = pt; } } Combat.applyToBoss(pl, bp, dmg, stg, { hs: .07, shake: .25, big: true }, 'sig'); }
+      return t < dur; }, () => { scene.remove(m); mat.dispose(); }); },
+  // a straight beam cut from the blade
+  beam(pl, col, L, w, dmg, stg) { const f = fwd(pl.yaw); const a0 = pl.pos.clone(); a0.y = (pl.gy || 0) + (pl.py || 0) + 1.15; const e = a0.clone().addScaledVector(f, L); const g = new THREE.Group(); g.position.copy(a0.clone().lerp(e, .5)); g.rotation.y = pl.yaw; scene.add(g);
+    const outer = new THREE.Mesh(this.g('box', () => new THREE.BoxGeometry(1, 1, 1)), this.addMat(col, .8)); outer.scale.set(w, w, L); const core = new THREE.Mesh(this.geo.box, this.addMat([3, 3, 3])); core.scale.set(w * .3, w * .3, L); g.add(outer, core);
+    const seen = new Set(); for (let i = 0; i <= L; i += 1.5) { const p = a0.clone().addScaledVector(f, i); this.hit(pl, p, w * .5 + 1, dmg, stg, seen, { hs: .1, shake: .35 }); if (i % 3 < 1.5) FX.sparks.emit(p, 4, { speed: 3, color: col, life: .4, size: .07, gravity: 0, jitter: .3 }); }
+    Game.flashLight(a0, col.map(v => v / 3), 60, .25); let t = 0; this.cast(dt => { t += dt; const k = Math.max(0, 1 - t / .45); outer.material.opacity = .8 * k; core.material.opacity = k; outer.scale.x = outer.scale.y = w * (1 + t * 2) * k + .001; return t < .45; }, () => { scene.remove(g); outer.material.dispose(); core.material.dispose(); }); },
+  // a thin line between two points (wires, chains, tethers)
+  line(a, b, col, life = .4, w = .05) { const L = a.distanceTo(b); const m = new THREE.Mesh(this.g('box', () => new THREE.BoxGeometry(1, 1, 1)), this.addMat(col)); m.scale.set(w, w, L); m.position.copy(a).lerp(b, .5); m.lookAt(b); scene.add(m);
+    let t = 0; this.cast(dt => { t += dt; m.material.opacity = Math.max(0, 1 - t / life); return t < life; }, () => { scene.remove(m); m.material.dispose(); }); },
+  // a crescent-shaped flash at a point (jaws, fangs, cuts)
+  arc(p, col, r, rotY, rotZ, dur = .22, span = 2.4) { const geo = new THREE.RingGeometry(r * .82, r, 24, 1, -span / 2, span); const mat = this.addMat(col); const m = new THREE.Mesh(geo, mat); m.position.copy(p); m.rotation.order = 'YXZ'; m.rotation.set(0, rotY, rotZ); scene.add(m);
+    let t = 0; this.cast(dt => { t += dt; const u = t / dur; m.scale.setScalar(.85 + .3 * u); mat.opacity = Math.max(0, 1 - u * u); return t < dur; }, () => { scene.remove(m); geo.dispose(); mat.dispose(); }); },
+  // ---------------------------------------------------------------- techniques: (pl, power, S, act) · power 1–3 for a charged heavy, 4 for Q
+  T: {
+    iaido(pl, k, S, a) { Combat.iaido(pl, { lvl: Math.min(3, k), cm: k >= 4 ? 2.6 : (a && a.cm) || 1 }); },
+    shadow(pl, k, S, a) { Combat.shadowCut(pl, a); },
+    // spikes erupt along the facing line
+    lance(pl, k, S) { const n = k >= 4 ? 16 : 6 + k * 3, col = S.E.h, kind = S.E.m; const seen = new Set(), dmg = k >= 4 ? 66 : 34 + k * 16; Audio.play('erupt'); Game.shake(.25 + k * .08); let i = 0, t = 0;
+      Sig.cast(dt => { t += dt; while (i < n && t >= i * .03) { const side = k >= 4 ? (i % 3 - 1) * 1.4 : 0; const p = Sig.at(pl, 1.4 + i * (k >= 4 ? .8 : .95), side); Sig.spikes(p, .8 + i * .04 + (k >= 4 ? .3 : 0), kind, col, k >= 4 ? 5 : 4); Sig.hit(pl, p.clone().setY(p.y + .8), 1.3, dmg, dmg * .35, seen, { hs: .08 }); i++; } return i < n; }); },
+    // lightning from the sky on the targets (or in a spread ahead)
+    thunder(pl, k, S) { const n = k >= 4 ? 9 : 1 + k, col = S.E.h; const T = Sig.tgt(pl, 18); const c = T ? T.p : Sig.at(pl, 6); const dmg = k >= 4 ? 70 : 46 + k * 14; let i = 0, t = 0; Audio.play('riftRelease');
+      Sig.cast(dt => { t += dt; while (i < n && t >= i * (k >= 4 ? .11 : .09)) { const a = i * 2.4, r = i === 0 ? 0 : 1.6 + (i % 3) * 1.4; const p = new V3(c.x + Math.sin(a) * r, 0, c.z + Math.cos(a) * r); p.y = Sig.gy(p.x, p.z); Sig.bolt(p, col); Audio.play('crit'); Game.shake(.18); Sig.hit(pl, p.clone().setY(p.y + 1), 2.2, dmg, dmg * .4, new Set(), { hs: .06, tall: 6 }); i++; } return i < n; }); },
+    // crescent waves
+    crescent(pl, k, S) { const n = k >= 4 ? 5 : k, col = S.E.t; Audio.play('riftRelease'); Game.shake(.2 + k * .06); const dmg = k >= 4 ? 80 : 50 + k * 18;
+      for (let i = 0; i < n; i++) { const off = n === 1 ? 0 : (i / (n - 1) - .5) * (k >= 4 ? 1 : .5); setTimeout(() => Sig.wave(pl, { col, yaw: off, tilt: (i % 2 ? -.4 : .4) * (k >= 4 ? 1 : 0), dmg, stg: dmg * .3, s: k >= 4 ? 1.3 : 1, range: k >= 4 ? 22 : 16 }), i * (k >= 4 ? 70 : 0)); } },
+    // stars fall on the ground ahead
+    meteor(pl, k, S) { const n = k >= 4 ? 10 : 2 + k, col = S.E.h; const T = Sig.tgt(pl, 20); const c = T ? T.p : Sig.at(pl, 8); const dmg = k >= 4 ? 64 : 40 + k * 10; Audio.play('riftCharge');
+      for (let i = 0; i < n; i++) { const a = i * 2.39996, r = i === 0 ? 0 : Math.sqrt(i) * (k >= 4 ? 2.2 : 1.6); const p = new V3(c.x + Math.sin(a) * r, 0, c.z + Math.cos(a) * r); p.y = Sig.gy(p.x, p.z); Sig.meteor(pl, p, col, dmg, dmg * .35, .18 + i * (k >= 4 ? .13 : .1), k >= 4 && i === 0 ? 1.8 : 1); } },
+    // a wave of water / frost / light around her
+    tide(pl, k, S) { const col = S.E.h; const p = new V3(pl.pos.x, (pl.gy || 0), pl.pos.z); const R = k >= 4 ? 11 : 4 + k * 1.6, dmg = k >= 4 ? 110 : 44 + k * 22; Audio.play('slam'); Game.shake(.3 + k * .06); Game.punch(.3);
+      Sig.ring(pl, p, col, R, dmg, dmg * .4, .5); if (k >= 4) { setTimeout(() => Sig.ring(pl, p, S.E.c, R * .7, dmg * .6, dmg * .2, .45), 180); for (let i = 0; i < 10; i++) { const a = i / 10 * 6.283; const q = new V3(p.x + Math.sin(a) * 5, 0, p.z + Math.cos(a) * 5); q.y = Sig.gy(q.x, q.z); setTimeout(() => Sig.spikes(q, 1.1, S.E.m, col, 4, .8), 120 + i * 25); } }
+      FX.sparks.emit(_a.set(p.x, p.y + .5, p.z), 40, { speed: 8, color: col, life: .55, size: .08, gravity: -10, up: 3 }); },
+    // a well that drags everything in, then bursts
+    well(pl, k, S) { const T = Sig.tgt(pl, 14); const c = T ? T.p : Sig.at(pl, 5); c.y += 1.2; const R = k >= 4 ? 9 : 4 + k, dur = k >= 4 ? 1.1 : .55; const col = S.E.h, dmg = k >= 4 ? 160 : 60 + k * 28;
+      const core = new THREE.Mesh(Sig.g('met', () => new THREE.SphereGeometry(.35, 10, 8)), new THREE.MeshBasicMaterial({ color: 0x000000 })); core.position.copy(c); scene.add(core); const halo = new THREE.Mesh(Sig.g('ring2', () => new THREE.RingGeometry(.9, 1, 40)), Sig.addMat(col)); halo.position.copy(c); scene.add(halo);
+      Audio.play('portal'); let t = 0, done = false;
+      Sig.cast(dt => { t += dt; const u = Math.min(1, t / dur); core.scale.setScalar(1 + u * (k >= 4 ? 4 : 2)); halo.quaternion.copy(camera.quaternion); halo.scale.setScalar(R * (1 - u) + 1); halo.material.opacity = .4 + .6 * u;
+        for (let i = 0; i < 3; i++) { const a = Math.random() * 6.283, r = R * rand(.5, 1); FX.sparks.emit(_a.set(c.x + Math.sin(a) * r, c.y + rand(-1, 1), c.z + Math.cos(a) * r), 1, { speed: 0, color: col, life: .3, size: .07, gravity: 0, dir: new V3(-Math.sin(a), 0, -Math.cos(a)), spread: .05 }); }
+        for (const h of Hounds.list) if (h.alive && hdist(h.pos, c) < R) { const d = new V3(c.x - h.pos.x, 0, c.z - h.pos.z); const l = d.length(); if (l > .8) h.pos.addScaledVector(d, Math.min(1, dt * 6 / l)); }
+        if (!done && u >= 1) { done = true; scene.remove(core); scene.remove(halo); Audio.play('explode'); Game.shake(.5); Game.punch(.6); Game.ca(.8); Game.blur(.8, c); FX.shock(c, R * .8, col, .5, c.y - 1); FX.sparks.emit(c, 60, { speed: 12, color: col, life: .6, size: .09, gravity: 0 });
+          Sig.hit(pl, c, R * .6, dmg, dmg * .4, new Set(), { hs: .14, shake: .6, tall: 5 }); }
+        return !done; }, () => { scene.remove(core); scene.remove(halo); core.material.dispose(); halo.material.dispose(); }); },
+    // a fan of fangs / feathers / blades
+    fangs(pl, k, S) { const n = k >= 4 ? 13 : 3 + k * 2, col = S.E.h, dmg = k >= 4 ? 38 : 20 + k * 6; Audio.play('swing');
+      for (let i = 0; i < n; i++) { const off = (i / (n - 1) - .5) * (k >= 4 ? 2.2 : 1.1); setTimeout(() => { Sig.wave(pl, { col, yaw: off, tilt: rand(-.6, .6), dmg, stg: dmg * .3, s: .45, speed: 30, range: k >= 4 ? 18 : 13 }); if (i % 3 === 0) Audio.play('dodge'); }, (k >= 4 ? (i % 2) * 90 + Math.floor(i / 2) * 25 : i * 22)); } },
+    // roots / vines / chains bind the ground ahead, then tear
+    roots(pl, k, S) { const col = S.E.h; const T = Sig.tgt(pl, 14); const c = T ? T.p : Sig.at(pl, 5); const R = k >= 4 ? 8 : 4 + k; const dmg = k >= 4 ? 44 : 30 + k * 8; Audio.play('erupt');
+      const n = k >= 4 ? 22 : 8 + k * 3; for (let i = 0; i < n; i++) { const a = i * 2.39996, r = Math.sqrt(i / n) * R; const p = new V3(c.x + Math.sin(a) * r, 0, c.z + Math.cos(a) * r); p.y = Sig.gy(p.x, p.z); setTimeout(() => Sig.spikes(p, .9, S.E.m, col, 3, 1.4), i * 30); }
+      const seen = new Set(); let t = 0, ticks = 0; Sig.cast(dt => { t += dt; for (const h of Hounds.list) if (h.alive && hdist(h.pos, c) < R) { h.vel && h.vel.multiplyScalar(.3); }
+        if (t >= .3 + ticks * .35 && ticks < (k >= 4 ? 4 : 2)) { ticks++; seen.clear(); Sig.hit(pl, c.clone().setY(c.y + 1), R, dmg, dmg * .3, seen, { hs: .04, shake: .15 }); FX.petal(_a.set(c.x, c.y + 1, c.z), 10, { speed: 4, up: 2 }); } return t < 1.6; }); },
+    // the ground splits in a line
+    quake(pl, k, S) { const col = S.E.h, n = k >= 4 ? 14 : 5 + k * 2, dmg = k >= 4 ? 74 : 44 + k * 18; Audio.play('slam'); Audio.play('explode'); Game.shake(.45 + k * .08); Game.punch(.5);
+      const seen = new Set(); let i = 0, t = 0; Sig.cast(dt => { t += dt; while (i < n && t >= i * .045) { const p = Sig.at(pl, 1.8 + i * 1.05, Math.sin(i * 1.7) * .5); try { FX.decal('crack', p, { r: 1.5, life: 6 }); } catch (e) {} Sig.spikes(p, 1 + (k >= 4 ? .5 : 0), 'rock', col, 3, .7);
+        FX.sparks.emit(_a.set(p.x, p.y + .3, p.z), 10, { speed: 6, color: col, life: .5, size: .08, gravity: -14, up: 4 }); Sig.hit(pl, p.clone().setY(p.y + .8), 1.6 + (k >= 4 ? .6 : 0), dmg, dmg * .45, seen, { hs: .1, shake: .3 }); i++; }
+        if (k >= 4 && i >= n && t > n * .045 + .25) { const e = Sig.at(pl, 1.8 + n * 1.05); Sig.pillar(e, col, 2, 9, .3); Sig.hit(pl, e.clone().setY(e.y + 1), 3.4, 120, 40, new Set(), { hs: .14, shake: .6 }); Game.shake(.6); return false; } return k >= 4 ? true : i < n; }); },
+    // blink through the target several times
+    blink(pl, k, S) { const T = Sig.tgt(pl, 14); const c = T ? T.p : Sig.at(pl, 5); const B = Game.boss; const R = T && T.T.boss ? B.bodyR + 1.7 : 2.2; const n = k >= 4 ? 6 : 1 + k, col = S.E.t, dmg = k >= 4 ? 52 : 40 + k * 10;
+      let ang = Math.atan2(pl.pos.x - c.x, pl.pos.z - c.z), i = 0, t = 0; pl.invuln = Math.max(pl.invuln, .25 * n + .3); Game.slow = Math.max(Game.slow, .12);
+      Sig.cast(dt => { t += dt; while (i < n && t >= i * .1) { const from = pl.pos.clone(); ang += Math.PI * (i % 2 ? .9 : .7); const to = new V3(c.x + Math.sin(ang) * R, 0, c.z + Math.cos(ang) * R); Combat.dest(pl, from, to); FX.ghost(pl.root, S.E.g); pl.pos.copy(to); Combat.keepY(pl); pl.vel.set(0, 0, 0); pl.yaw = yawTo(to, c);
+          const a = from.clone(), b = to.clone(); a.y = b.y = Sig.gy(c.x, c.z) + rand(.9, 1.6); Sig.line(a, b, col, .45, .06); Audio.play('dodge'); Audio.play('swing'); Game.shake(.1); Sig.hit(pl, new V3(c.x, a.y, c.z), R + 1, dmg, dmg * .3, new Set(), { hs: .04, shake: .12 }); i++; }
+        if (i >= n && t >= n * .1 + .2) { Audio.play('crit'); Game.punch(.5); FX.sparks.emit(_a.set(c.x, Sig.gy(c.x, c.z) + 1.3, c.z), 40, { speed: 8, color: S.E.c, life: .5, size: .07, gravity: 0 }); if (k >= 4) { Sig.hit(pl, new V3(c.x, Sig.gy(c.x, c.z) + 1.3, c.z), R + 1.5, 120, 40, new Set(), { hs: .16, shake: .6 }); Game.blur(1, _a.set(c.x, 1.4, c.z)); Game.ca(1); Game.slow = Math.max(Game.slow, .4); } return false; } return true; }); },
+    // two arcs close on the target like jaws
+    maw(pl, k, S) { const T = Sig.tgt(pl, 10); const c = T ? T.p : Sig.at(pl, 3.5); const y = (T ? T.y : c.y + 1.1); const r = k >= 4 ? 4 : 2.2 + k * .4, col = S.E.h, dmg = k >= 4 ? 90 : 56 + k * 24; const n = k >= 4 ? 3 : 1; Audio.play('growl');
+      for (let j = 0; j < n; j++) setTimeout(() => { const p = new V3(c.x, y, c.z), ry = pl.yaw + j * .9; Sig.arc(p.clone().setY(y + r * .4), col, r, ry, Math.PI / 2, .3, 2.2); Sig.arc(p.clone().setY(y - r * .4), col, r, ry, -Math.PI / 2, .3, 2.2);
+        setTimeout(() => { Audio.play('hitHeavy'); Game.shake(.3); Game.hitstop(.06); FX.sparks.emit(p, 26, { speed: 6, color: S.E.c, life: .45, size: .08, gravity: -6 }); Sig.hit(pl, p, r * .8, dmg, dmg * .4, new Set(), { hs: .12, shake: .45, tall: 4 }); if (S.el === 'blood' && !pl.isAI) pl.hp = Math.min(pl.maxHp, pl.hp + 4); }, 150); }, j * 260); },
+    // ribbons of light circle her
+    ribbon(pl, k, S) { const n = k >= 4 ? 4 : 2, col = S.E.t, R = k >= 4 ? 5.5 : 3.6, dmg = k >= 4 ? 46 : 30 + k * 10; const g = new THREE.Group(); scene.add(g); Audio.play('riftRelease');
+      const geo = Sig.g('rib', () => new THREE.TorusGeometry(1, .06, 4, 40, Math.PI * .9)); for (let i = 0; i < n; i++) { const m = new THREE.Mesh(geo, Sig.addMat(i % 2 ? S.E.c : col)); m.rotation.set(Math.PI / 2 + rand(-.3, .3), 0, i * Math.PI * 2 / n); m.userData.y = .5 + i * .45; g.add(m); }
+      let t = 0, hitT = 0; const dur = k >= 4 ? 2 : .8;
+      Sig.cast(dt => { t += dt; hitT -= dt; g.position.set(pl.pos.x, (pl.gy || 0) + (pl.py || 0), pl.pos.z); const u = Math.min(1, t / .2), out = t > dur ? Math.max(0, 1 - (t - dur) / .25) : 1;
+        g.children.forEach((m, i) => { m.scale.setScalar(R * u * (.8 + .2 * Math.sin(t * 4 + i))); m.position.y = m.userData.y + Math.sin(t * 3 + i) * .3; m.rotation.z += dt * (8 + i * 2) * (i % 2 ? -1 : 1); m.material.opacity = out; });
+        if (hitT <= 0 && out > .5) { hitT = .2; Sig.hit(pl, new V3(pl.pos.x, (pl.gy || 0) + 1, pl.pos.z), R, dmg, dmg * .25, new Set(), { hs: .02, shake: .08 }); } return t < dur + .25; }, () => { scene.remove(g); g.children.forEach(m => m.material.dispose()); }); },
+    // wires to every enemy nearby, then one pull cuts them all
+    wire(pl, k, S) { const col = S.E.h, R = k >= 4 ? 18 : 9 + k * 2, dmg = k >= 4 ? 110 : 52 + k * 22; const hand = pl.pos.clone(); hand.y = (pl.gy || 0) + 1.3; const L = []; const B = Game.boss;
+      if (B.alive && hdist(B.pos, pl.pos) < R + B.bodyR) { let bp = B.parts[0], bd = 1e9; for (const pt of B.parts) { const d = hdist(pt.w, pl.pos); if (d < bd) { bd = d; bp = pt; } } L.push({ p: bp.w.clone(), part: bp }); }
+      for (const h of Hounds.list) if (h.alive && hdist(h.pos, pl.pos) < R && L.length < (k >= 4 ? 10 : 3 + k)) L.push({ p: new V3(h.pos.x, Sig.gy(h.pos.x, h.pos.z) + .8, h.pos.z), h });
+      if (!L.length) L.push({ p: Sig.at(pl, 6).setY(hand.y) }); Audio.play('lock');
+      L.forEach(x => Sig.line(hand, x.p, col, .55, .035)); setTimeout(() => { Audio.play('crit'); Audio.play('swingHeavy'); Game.shake(.35); Game.punch(.4); for (const x of L) { Sig.line(hand, x.p, [3, 3, 3], .18, .09); FX.sparks.emit(x.p, 16, { speed: 6, color: col, life: .4, size: .07, gravity: -6 });
+          if (x.part && B.alive) Combat.applyToBoss(pl, x.part, dmg, dmg * .4, { hs: .1, shake: .35, big: true }, 'sig'); else if (x.h && x.h.alive) Hounds.damage(x.h, dmg * 1.4, pl.pos, { big: true, pl }); if (k >= 4 && S.el === 'thunder') Sig.bolt(x.p.clone().setY(Sig.gy(x.p.x, x.p.z)), col, 10); } }, 380); },
+    // pillars of light along a line or around the target
+    pillar(pl, k, S) { const col = S.E.h, T = Sig.tgt(pl, 18); const c = T ? T.p : Sig.at(pl, 6); const n = k >= 4 ? 7 : k, dmg = k >= 4 ? 76 : 58 + k * 18; Audio.play('perfect');
+      for (let i = 0; i < n; i++) { const a = i * 6.283 / Math.max(1, n - 1), r = i === 0 ? 0 : (k >= 4 ? 4 : 2.2); const p = new V3(c.x + Math.sin(a) * r, 0, c.z + Math.cos(a) * r); p.y = Sig.gy(p.x, p.z); setTimeout(() => { Sig.pillar(p, i === 0 ? S.E.c : col, i === 0 && k >= 4 ? 2.4 : 1.3, 16, k >= 4 ? .8 : .45); Audio.play('riftRelease'); Game.shake(.2); Sig.hit(pl, p.clone().setY(p.y + 1), i === 0 && k >= 4 ? 3.4 : 2.2, dmg, dmg * .35, new Set(), { hs: .08, tall: 8 }); }, i * (k >= 4 ? 110 : 140)); } },
+    // shards burst forward in a cone
+    shards(pl, k, S) { const col = S.E.h, n = k >= 4 ? 26 : 8 + k * 4, dmg = k >= 4 ? 30 : 18 + k * 6, f0 = pl.yaw; const geo = Sig.g('shard', () => new THREE.OctahedronGeometry(.18, 0).scale(.6, .6, 2.2)); const mat = Sig.solid(S.E.m, col); Audio.play('break'); Game.shake(.25 + k * .05);
+      const start = pl.pos.clone(); start.y = (pl.gy || 0) + 1.1; const L = []; for (let i = 0; i < n; i++) { const m = new THREE.Mesh(geo, mat); const yaw = f0 + rand(-.5, .5) * (k >= 4 ? 1.6 : 1), pitch = rand(-.08, .25); m.position.copy(start); m.rotation.set(-pitch, yaw, 0, 'YXZ'); scene.add(m); L.push({ m, v: new V3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(rand(18, 30)), seen: new Set() }); }
+      let t = 0; Sig.cast(dt => { t += dt; for (const s of L) { if (!s.m.visible) continue; s.m.position.addScaledVector(s.v, dt); s.v.y -= 9 * dt; if (Sig.hit(pl, s.m.position, .9, dmg, dmg * .25, s.seen, { hs: .02, shake: .06 })) { s.m.visible = false; FX.sparks.emit(s.m.position, 5, { speed: 4, color: col, life: .3, size: .06, gravity: -8 }); } if (s.m.position.y < Sig.gy(s.m.position.x, s.m.position.z)) s.m.visible = false; } return t < .7; }, () => L.forEach(s => scene.remove(s.m))); },
+    // a straight rail of light
+    rail(pl, k, S) { const col = S.E.h, L = k >= 4 ? 34 : 12 + k * 5, w = k >= 4 ? 2.2 : .8 + k * .25, dmg = k >= 4 ? 170 : 66 + k * 30; Audio.play('riftRelease'); Audio.play('crit'); Game.shake(.3 + k * .08); Game.punch(.4); Game.ca(.5);
+      if (k >= 4) { Audio.play('riftCharge'); pl.invuln = Math.max(pl.invuln, .5); setTimeout(() => Sig.beam(pl, col, L, w, dmg, dmg * .4), 260); FX.sparks.emit(pl.weaponTip(), 40, { speed: 2, color: col, life: .3, size: .08, gravity: 0 }); } else Sig.beam(pl, col, L, w, dmg, dmg * .4); },
+    // a mark: phantom cuts keep landing where she struck
+    echo(pl, k, S) { const T = Sig.tgt(pl, 10); const c = T ? T.p : Sig.at(pl, 3); const y = T ? T.y : c.y + 1.1; const n = k >= 4 ? 9 : 2 + k, col = S.E.t, dmg = k >= 4 ? 40 : 26 + k * 8; Audio.play('swingHeavy');
+      for (let i = 0; i < n; i++) setTimeout(() => { const p = new V3(c.x + rand(-.4, .4), y + rand(-.4, .4), c.z + rand(-.4, .4)); Sig.arc(p, i % 2 ? col : S.E.c, rand(1.6, 2.4), rand(0, 6.28), rand(-1.2, 1.2), .22, 2.6); Audio.play(i === n - 1 ? 'crit' : 'swing'); Game.shake(.08); Sig.hit(pl, p, 2.2, dmg * (i === n - 1 ? 2.2 : 1), dmg * .3, new Set(), { hs: .03, shake: .1, tall: 4 }); }, 120 + i * (k >= 4 ? 85 : 110)); },
+    // a burst of fire / starlight at the blade's end
+    nova(pl, k, S) { const p = Sig.at(pl, k >= 4 ? 0 : 2.6); p.y += 1; const R = k >= 4 ? 8 : 3 + k * .8, col = S.E.h, dmg = k >= 4 ? 190 : 64 + k * 30; const geo = Sig.g('met', () => new THREE.SphereGeometry(.35, 10, 8)); const m = new THREE.Mesh(geo, Sig.addMat(S.E.c)); m.position.copy(p); scene.add(m);
+      const delay = k >= 4 ? .45 : 0; Audio.play(k >= 4 ? 'riftCharge' : 'explode'); let t = 0, done = false; if (k >= 4) pl.invuln = Math.max(pl.invuln, .9);
+      Sig.cast(dt => { t += dt; if (t < delay) { m.scale.setScalar(1 + t * 3); if (Math.random() < .8) FX.sparks.emit(p, 2, { speed: 0, color: col, life: .3, size: .08, gravity: 0, jitter: 2.5 }); return true; }
+        if (!done) { done = true; Audio.play('explode'); Game.shake(.4 + k * .06); Game.punch(.6); Game.ca(.6); Game.flashLight(p, col.map(v => v / 3), 90, .35); FX.shock(p, R * 1.3, col, .5, p.y - 1); FX.sparks.emit(p, 70, { speed: 12, color: col, life: .6, size: .1, gravity: -6 }); FX.smoke.emit(p, 6, { speed: 3, color: [.32, .22, .2], life: 1.4, size: 1.6, gravity: .5, grow: 1.8, alpha: .45 });
+          Sig.hit(pl, p, R, dmg, dmg * .4, new Set(), { hs: .12, shake: .5, tall: 4 }); }
+        const u = (t - delay) / .3; m.scale.setScalar(1 + u * R * 2.4); m.material.opacity = Math.max(0, 1 - u); return u < 1; }, () => { scene.remove(m); m.material.dispose(); }); },
+    // a storm of blades that travels forward
+    cyclone(pl, k, S) { const col = S.E.t, dur = k >= 4 ? 2.2 : .9, dmg = k >= 4 ? 36 : 22 + k * 6; const p = Sig.at(pl, 2); const f = fwd(pl.yaw); const g = new THREE.Group(); g.position.copy(p); scene.add(g); Audio.play('riftRelease');
+      const geo = Sig.g('cres', () => new THREE.TorusGeometry(1.6, .09, 5, 28, Math.PI)); for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(geo, Sig.addMat(i % 2 ? S.E.c : col, .9)); m.rotation.set(Math.PI / 2, 0, i * 1.57); m.position.y = .4 + i * .5; m.scale.setScalar(.8 + i * .25); g.add(m); }
+      let t = 0, hT = 0; Sig.cast(dt => { t += dt; hT -= dt; g.position.addScaledVector(f, dt * (k >= 4 ? 5 : 7)); g.position.y = Sig.gy(g.position.x, g.position.z); g.children.forEach((m, i) => { m.rotation.z += dt * (12 + i * 3); m.material.opacity = t > dur ? Math.max(0, 1 - (t - dur) / .25) : .9; });
+        FX.smoke.emit(_a.set(g.position.x, g.position.y + .3, g.position.z), 1, { speed: 2, color: [.3, .3, .32], life: .6, size: .7, gravity: .2, grow: 1.2, alpha: .25 });
+        if (hT <= 0 && t < dur) { hT = .16; Sig.hit(pl, g.position.clone().setY(g.position.y + 1), 2.6, dmg, dmg * .2, new Set(), { hs: .02, shake: .06 }); for (const h of Hounds.list) if (h.alive && hdist(h.pos, g.position) < 4) { const d = new V3(g.position.x - h.pos.x, 0, g.position.z - h.pos.z); h.pos.addScaledVector(d, Math.min(1, dt * 3)); } }
+        return t < dur + .25; }, () => { scene.remove(g); g.children.forEach(m => m.material.dispose()); }); } },
+  // finisher bursts (the last cut of a combo), small and quick
+  F: {
+    flare(pl, S) { const p = Sig.at(pl, 2.4); p.y += 1.1; Sfx.flare(p, S.E.c, { len: 3.4, w: .2, dur: .22, n: 3 }); FX.shock(p, 2.6, S.E.h.map(v => v * .6), .3, p.y); Sig.hit(pl, p, 2, 26, 8, new Set(), { hs: .03 }); },
+    spikes(pl, S) { for (let i = 0; i < 3; i++) { const p = Sig.at(pl, 1.8 + i * .9, (i - 1) * .6); setTimeout(() => { Sig.spikes(p, .75, S.E.m, S.E.h, 3, .5); Sig.hit(pl, p.clone().setY(p.y + .8), 1.2, 18, 6, new Set(), { hs: .02 }); }, i * 40); } },
+    bolt(pl, S) { const T = Sig.tgt(pl, 6); const p = T ? T.p : Sig.at(pl, 3); Sig.bolt(p, S.E.h, 9); Sig.hit(pl, p.clone().setY(p.y + 1), 1.8, 30, 10, new Set(), { hs: .04, tall: 6 }); },
+    star(pl, S) { const p = Sig.at(pl, 2.8); Sig.meteor(pl, p, S.E.h, 30, 10, 0, .6); },
+    splash(pl, S) { const p = new V3(pl.pos.x, pl.gy || 0, pl.pos.z); Sig.ring(pl, p, S.E.h, 3.6, 22, 8, .3); FX.sparks.emit(_a.set(p.x, p.y + .6, p.z), 24, { speed: 5, color: S.E.h, life: .5, size: .07, gravity: -12, up: 4 }); },
+    bloom(pl, S) { const p = Sig.at(pl, 2.4); p.y += 1; FX.sparks.emit(p, 34, { speed: 7, color: S.E.h, life: .45, size: .09, gravity: -4 }); FX.shock(p, 3, S.E.h.map(v => v * .7), .35, p.y - .9); Game.flashLight(p, S.E.h.map(v => v / 3), 40, .2); Sig.hit(pl, p, 2.2, 26, 8, new Set(), { hs: .03 }); },
+    wave(pl, S) { Sig.wave(pl, { col: S.E.t, dmg: 22, stg: 6, s: .7, range: 9, speed: 26 }); },
+    fangs(pl, S) { for (let i = 0; i < 3; i++) Sig.wave(pl, { col: S.E.h, yaw: (i - 1) * .3, tilt: rand(-.6, .6), dmg: 12, stg: 4, s: .4, range: 8, speed: 30 }); },
+    implode(pl, S) { const p = Sig.at(pl, 2.6); p.y += 1.1; FX.sparks.emit(p, 30, { speed: 0, color: S.E.h, life: .3, size: .08, gravity: 0, jitter: 2.4 }); setTimeout(() => { FX.shock(p, 2.6, S.E.h, .3, p.y - 1); Sig.hit(pl, p, 2.2, 28, 10, new Set(), { hs: .04 }); Audio.play('hitHeavy'); }, 140); },
+    echo(pl, S) { const p = Sig.at(pl, 2.3); p.y += 1.1; setTimeout(() => { Sig.arc(p, S.E.c, 2, pl.yaw, rand(-1, 1), .2); Sig.hit(pl, p, 2, 22, 6, new Set(), { hs: .02 }); Audio.play('swing'); }, 220); },
+    sparks(pl, S) { const p = Sig.at(pl, 2.2); p.y += 1.1; FX.sparks.emit(p, 40, { speed: 9, color: S.E.h, life: .35, size: .05, gravity: -10, dir: fwd(pl.yaw), spread: .6 }); Sig.hit(pl, p, 2, 18, 6, new Set(), { hs: .02 }); },
+    shards(pl, S) { Sig.T.shards(pl, 1, S); },
+    ribbon(pl, S) { Sig.arc(new V3(pl.pos.x, (pl.gy || 0) + 1.1, pl.pos.z), S.E.t, 3.2, pl.yaw, Math.PI / 2, .3, 5.6); Sig.hit(pl, new V3(pl.pos.x, (pl.gy || 0) + 1, pl.pos.z), 3.2, 20, 6, new Set(), { hs: .02 }); } },
+  // ---------------------------------------------------------------- the combo for each style
+  styleMoves(cls, st, sp, base) { const D = Arms.build(), mk = Arms.mk.bind(Arms); const M = { ...base }; const K = D.katana, G = D.great;
+    const s = (d, k, o = {}) => d ? mk(d, d.dur / k, o) : d;
+    if (cls === 'long') {
+      if (st === 'thrust') M.light2 = mk(K.light3, .42, { dmg: 30, stg: 9, reach: 3.5, arc: .7, lunge: [.06, .2, 2.8], snd: 'swing' });
+      if (st === 'whirl') M.light3 = mk(PDEF.round, .74, { dmg: 44, stg: 14, cost: 0, spirit: 0, arc: 6.3, reach: 3.5, big: true });
+      if (st === 'twin') { M.light1 = mk(PDEF.light2, PDEF.light2.dur, {}); M.light2 = mk(PDEF.light1, PDEF.light1.dur, {}); M.light3 = mk(PDEF.spirit3, .56, { cost: 0, spirit: 0, dmg: 24, stg: 7 }); }
+      if (st === 'rapid') { for (const n of ['light1', 'light2', 'light3']) M[n] = s(base[n], 1.18, { dmg: Math.round(base[n].dmg * .85) }); if (PDEF.light4) M.light4 = s(PDEF.light4, 1.1); }
+      if (st === 'heavy') for (const n of ['light1', 'light2', 'light3']) M[n] = s(base[n], .84, { dmg: Math.round(base[n].dmg * 1.3), stg: Math.round((base[n].stg || 6) * 1.35), reach: (base[n].reach || 3) + .35, big: n === 'light3' || base[n].big, snd: 'swingHeavy', shake: (base[n].shake || .05) + .06, hs: (base[n].hs || .04) + .02 });
+      if (st !== 'rapid') delete M.light4; }
+    if (cls === 'katana') {
+      if (st === 'iai') M.light3 = mk(PDEF.heavy, .5, { dmg: 34, stg: 10, reach: 3.6, arc: 1.2, hit: [.24, .32], holdAt: undefined, charge: false, cast: undefined, release: undefined, chain: .36, cancel: .34, snd: 'swingHeavy', hs: .06, shake: .1, lunge: [.2, .3, 3] });
+      if (st === 'crescent') M.light2 = mk(PDEF.light2, .34, { dmg: 22, stg: 5, reach: 3.2, arc: 2.6, lunge: [.03, .14, 1.4] }); }
+    if (cls === 'great') {
+      if (st === 'spin') M.light2 = mk(PDEF.round, .95, { dmg: 54, stg: 20, cost: 0, spirit: 0, arc: 6.3, reach: 3.9, big: true, snd: 'swingHeavy', hs: .1, shake: .2 }, v => Object.assign(v, { th: 1, cr: (v.cr || 0) + .1 }));
+      if (st === 'crush') { M.light1 = s(G.light1, .9, { dmg: 64, stg: 26 }); M.light3 = s(G.light3, .88, { dmg: 108, stg: 40, shake: .5 }); } }
+    if (sp !== 1) for (const n of ['light1', 'light2', 'light3', 'light4']) if (M[n]) M[n] = s(M[n], sp);
+    return M; },
+  // how she moves for each Q: draw from the sheath, raise the blade to the sky and bring it down, thrust, or spin
+  QP: { iaido: 'draw', crescent: 'draw', fangs: 'draw', blink: 'draw', echo: 'draw', lance: 'raise', thunder: 'raise', meteor: 'raise', tide: 'raise', roots: 'raise', quake: 'raise', pillar: 'raise', nova: 'raise', well: 'thrust', maw: 'thrust', wire: 'thrust', shards: 'thrust', rail: 'thrust', ribbon: 'spin', cyclone: 'spin' },
+  _qp: null,
+  qPose(k) { if (!this._qp) { const B = P({}); const SHEATH = PDEF.rift.keys[1].v, DRAWN = PDEF.rift.keys[3].v;
+      const UPP = P({ g: [0.02, 0.8, 0.14], d: [0, 1, 0.08], th: 1, tp: -.3, ty: 0, cr: .05 }), SLAM = P({ g: [0, -0.05, 0.62], d: [0, -0.72, 0.7], th: 1, tp: .45, cr: .45, lg: 1 });
+      const PULL = P({ g: [-0.28, 0.12, -0.05], d: [0.05, -0.02, 1], ty: -0.5, tp: .1, cr: .35, th: .3, lg: .4 }), THR = P({ g: [-0.02, 0.14, 0.7], d: [0, 0, 1], ty: .1, tp: .3, cr: .3, lg: 1, th: .2 });
+      this._qp = {
+        draw: { dur: 1.0, release: .64, cancel: .92, keys: [{ t: 0, v: B }, { t: .14, e: 'in', v: SHEATH }, { t: .56, v: SHEATH }, { t: .66, e: 'out', v: DRAWN }, { t: 1.0, v: B }] },
+        raise: { dur: 1.05, release: .64, cancel: .95, keys: [{ t: 0, v: B }, { t: .28, e: 'in', v: UPP }, { t: .54, v: UPP }, { t: .64, e: 'out', v: SLAM }, { t: .82, v: SLAM }, { t: 1.05, v: B }] },
+        thrust: { dur: .95, release: .52, cancel: .86, keys: [{ t: 0, v: B }, { t: .26, e: 'in', v: PULL }, { t: .44, v: PULL }, { t: .52, e: 'out', v: THR }, { t: .74, v: THR }, { t: .95, v: B }] },
+        spin: { dur: .95, release: .26, cancel: .86, spin: [.22, .62], keys: PDEF.round.keys.map(x => ({ ...x, t: Math.min(.95, x.t * .95 / PDEF.round.dur) })).filter((x, i, a) => i === 0 || x.t > a[i - 1].t) } }; }
+    return this._qp[k] || this._qp.draw; },
+  cache: {},
+  moves(id, S) { if (this.cache[id]) return this.cache[id]; const D = Arms.build(); const base = D[S.cls] || PDEF; const M = this.styleMoves(S.cls, S.st, S.sp, base);
+    // the finisher: the last cut releases the element
+    const last = M.light4 && S.st === 'rapid' ? 'light4' : 'light3'; if (M[last]) M[last] = { ...M[last], fx: 'sigFin' };
+    // charged heavy → this blade's technique (great swords: at the moment the blade lands)
+    const hv = M.heavy; if (hv) { if (hv.cast) M.heavy = { ...hv, cast: 'sigHeavy' }; else M.heavy = { ...hv, release: hv.hit ? hv.hit[0] : hv.dur * .5, cast: 'sigHeavy' }; }
+    if (M.rift) M.rift = S.Q[0] === 'shadow' ? { ...M.rift, cast: 'sigQ' } : { ...this.qPose(this.QP[S.Q[0]] || 'draw'), cast: 'sigQ' };
+    return this.cache[id] = M; },
+  // ---------------------------------------------------------------- apply to the player
+  apply(pl) { if (!pl || pl.isAI || pl.wtype !== 'longsword') { if (pl) pl._sig = null; return; } const id = Gear.cur(pl).weapon; const S0 = this.of(id); if (!S0) return; const S = { ...S0, id, E: this.E[S0.el] || this.E.steel };
+    pl._sig = S; if (pl.wcls !== S.cls) { pl.wcls = S.cls; }
+    pl.moves = this.moves(id, S); pl.C = { ...pl.C, trail: S.E.t, hitCol: S.E.h, critCol: S.E.c, ghost: S.E.g, trailCounter: S.E.c };
+    pl.wlabels = { ...(pl.wlabels || {}), heavy: S.H[1], rift: S.Q[1] };
+    // blades without a sculpted model take their class's proportions: broad for great swords, slim for katanas
+    try { const g = GEARDB[id], R = pl.rigs && pl.rigs[pl.charId], Mo = R && R.models && R.models.longsword; if (Mo && !(g && typeof g.art === 'string' && Arms.ART[g.art])) { if (S.cls === 'great') Mo.scale.set(1.9, 1.9, 1.12); else if (S.cls === 'katana') Mo.scale.set(.78, .8, 1.04); else Mo.scale.set(1, 1, 1); } } catch (e) {} },
+  hook() { if (this._h) return; this._h = 1;
+    // blades whose names asked for a different class
+    for (const id in this.W) { const S = this.W[id], g = GEARDB[id]; if (S && g && !g.cls) g.cls = S.cls; }
+    Combat.sigHeavy = function (pl, a) { const S = pl._sig; if (!S) return Combat.iaido(pl, a); const k = (a && a.lvl) || 1; try { Sig.T[S.H[0]](pl, k, S, a); } catch (e) { console.warn('sig heavy', e); }
+      FX.sparks.emit(pl.weaponTip(), 24, { speed: 5, color: S.E.c, life: .4, size: .07, gravity: 0 }); };
+    Combat.sigQ = function (pl, a) { const S = pl._sig; if (!S) return Combat.shadowCut(pl, a); try { Sig.T[S.Q[0]](pl, 4, S, a); } catch (e) { console.warn('sig Q', e); } if (!pl.isAI) UI.notify(S.Q[1], 'perfect'); };
+    Combat.sigFin = function (pl, a) { const S = pl._sig; if (!S || !Sig.F[S.fin]) return; try { Sig.F[S.fin](pl, S); } catch (e) { console.warn('sig fin', e); } };
+    // apply after every equip (after the class set-up)
+    const ga = Gear.apply.bind(Gear); Gear.apply = function (pl) { ga(pl); try { Sig.apply(pl); } catch (e) { console.warn('sig apply', e); } };
+    const P0 = Player.prototype; const sw0 = P0.setWeaponType; P0.setWeaponType = function (type, g) { sw0.call(this, type, g); if (!this.isAI) try { Sig.apply(this); } catch (e) {} };
+    // every hit throws a little of the element
+    const oh = Sfx.onHit.bind(Sfx); Sfx.onHit = function (pl, p, kind, crit, big) { oh(pl, p, kind, crit, big); const S = pl && pl._sig; if (!S || pl.isAI) return; Sig.hitFX(S, p, crit || big); };
+    // great sword / katana class arcs follow the new classes too (Arms.SW is keyed by class already)
+    // labels in Chinese
+    try { const Z = {}; for (const id in this.W) { const S = this.W[id]; if (!S) continue; Z[S.H[1]] = S.H[2]; Z[S.Q[1]] = S.Q[2]; } for (const k in this.STYLE) Z[this.STYLE[k][0]] = this.STYLE[k][1]; for (const k in this.EL) Z[this.EL[k][0]] = this.EL[k][1];
+      Object.assign(Z, { 'Charged heavy': '蓄力重擊', 'Element': '屬性', 'Combo': '連段', 'Hold RMB': '按住右鍵' }); Object.assign(ZH_DICT, Z); try { for (const k in Z) I18N.upper && I18N.upper.set(k.toUpperCase(), Z[k]); } catch (e) {} } catch (e) {}
+    // the combo hint and technique card use the blade's own names
+    try { const cu0 = ComboHint.update.bind(ComboHint); ComboHint.update = function () { const pl = Game.player; const S = pl && pl._sig; const r = cu0(); if (S && this.el && this.el.classList.contains('on')) { const want = I18N.t(S.H[1]); for (const sp of this.el.querySelectorAll('span')) { const t = sp.textContent; if (t === I18N.t('Charged slash') || t === I18N.t('Iai flash') || t === I18N.t('Iaido') || t === I18N.t('Hold to charge')) sp.textContent = want; } } return r; }; } catch (e) {}
+    // the gear card: element, style and the two techniques
+    try { const d0 = VoidUI.detail.bind(VoidUI); VoidUI.detail = function (id) { let h = d0(id); const g = GEARDB[id]; const S = g && g.kind === 'weapon' && g.type === 'longsword' ? Sig.of(id) : null; if (!S) return h;
+        const st = Sig.STYLE[S.st] || ['', ''], el = Sig.EL[S.el] || ['', '']; const cls = { great: 'Great Sword', long: 'Long Sword', katana: 'Katana' }[S.cls];
+        const rows = `<div class="vsig"><span class="vsg-el" style="--c:rgb(${(Sig.E[S.el] || Sig.E.steel).h.map(v => Math.round(Math.min(255, v * 85))).join(',')})">${I18N.t(el[0])}</span><span>${I18N.t(cls)}</span><span>${I18N.t(st[0])}</span></div>
+          <div class="vmv"><kbd>RMB</kbd><b>${I18N.t(S.H[1])}</b><kbd>Q</kbd><b>${I18N.t(S.Q[1])}</b></div>`;
+        return h.replace('<div class="vcmp">', rows + '<div class="vcmp">'); };
+      const t0 = VoidUI.tile.bind(VoidUI); VoidUI.tile = function (id) { const h = t0(id); const g = GEARDB[id]; if (!g || g.kind !== 'weapon') return h; const svg = Sig.icon(id); return svg ? h.replace(/<svg[\s\S]*?<\/svg>/, svg) : h; }; } catch (e) { console.warn('sig ui', e); }
+    try { const s = document.createElement('style'); s.textContent = `.vsig{display:flex;gap:8px;flex-wrap:wrap;font:700 10px/1 var(--f-ui);letter-spacing:.24em;text-transform:uppercase;color:var(--v-ink3)}.vsig span{border:1px solid var(--v-hair);padding:5px 7px}.vsig .vsg-el{color:var(--v-ink);border-color:var(--c);box-shadow:inset 3px 0 0 var(--c)}
+.vmv{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:6px 8px;align-items:center;font:600 13px/1.2 var(--f-ui);color:var(--v-ink)}.vmv kbd{font:800 9px/1 var(--f-ui);letter-spacing:.12em;border:1px solid var(--v-ink3);color:var(--v-ink2);padding:4px 5px}
+.vt .vel{position:absolute;top:6px;left:6px;width:8px;height:8px;transform:rotate(45deg);background:var(--c);opacity:.9}`; document.head.appendChild(s); } catch (e) {} },
+  // the element shows up on every hit
+  hitFX(S, p, big) { const c = S.E.h; switch (S.el) {
+      case 'frost': case 'mist': FX.sparks.emit(p, big ? 14 : 8, { speed: 4, color: c, life: .5, size: .06, gravity: -5, drag: 2.5 }); break;
+      case 'fire': case 'ash': FX.sparks.emit(p, big ? 16 : 9, { speed: 5, color: c, life: .55, size: .07, gravity: 3, up: 1 }); break;
+      case 'thunder': for (let i = 0; i < (big ? 3 : 2); i++) Sfx.flare(p.clone().add(new V3(rand(-.5, .5), rand(-.5, .5), rand(-.5, .5))), c, { len: 1.4, w: .06, dur: .1, n: 1 }); break;
+      case 'water': FX.sparks.emit(p, big ? 14 : 8, { speed: 4, color: c, life: .45, size: .06, gravity: -14, up: 2 }); break;
+      case 'moss': FX.petal(p, big ? 8 : 4, { speed: 3, up: 1 }); break;
+      case 'shadow': case 'void': case 'blood': FX.sparks.emit(p, big ? 14 : 8, { speed: 2.5, color: c, life: .6, size: .09, gravity: 0, drag: 3 }); break;
+      default: FX.sparks.emit(p, big ? 12 : 6, { speed: 5, color: c, life: .35, size: .05, gravity: -8 }); } },
+  // ---------------------------------------------------------------- an icon per blade: drawn from its class and shape, with an element mark
+  icon(id) { const g = GEARDB[id]; if (!g) return null; if (g.type === 'staff') return null; const S = this.of(id); if (!S) return null; const L = (g.look && g.look.len) || 1; let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const v = h % 4, len = 15 + (L - 1) * 30; const tip = [26, 6]; let blade, guard, grip, deco = '';
+    const ang = Math.atan2(-1, 1); const ux = Math.cos(ang), uy = Math.sin(ang); const B = (d) => [16 - ux * d * .5 + 0, 16 - uy * d * .5]; void B;
+    if (S.cls === 'great') { const w = 3.2; blade = `<path d="M7 25 L9 23 L23 7.5 L26.5 5.5 L24.5 9 L9 25 Z" stroke-linejoin="round"/><path d="M10 22 L22.5 8.5"/>${v % 2 ? '<path d="M17 13 L19 15 M19.5 10.5 L21.5 12.5"/>' : '<path d="M14 18 L16 20"/>'}`; guard = '<path d="M5 20 L12 27"/>'; grip = '<path d="M8 24 L3.5 28.5"/><circle cx="3" cy="29" r="1"/>'; void w; }
+    else if (S.cls === 'katana') { blade = `<path d="M8 24 Q19 15 27.5 4.5"/><path d="M9.5 25 Q20 16 27.5 4.5"/>`; guard = v % 2 ? '<ellipse cx="9" cy="23.5" rx="2.8" ry="1.6" transform="rotate(-40 9 23.5)"/>' : '<rect x="7" y="21.6" width="4" height="4" transform="rotate(45 9 23.6)"/>'; grip = '<path d="M7.5 25 L3.5 29"/><path d="M5 26.8 L6.3 28 M3.9 27.8 L5.2 29"/>'; }
+    else { const tipY = Math.max(3, 6 - (L - 1) * 20); blade = `<path d="M12 18 L25 5 L${27 + (L > 1.08 ? 1 : 0)} ${tipY - 1} L26 7 L13 20"/>`; guard = v === 0 ? '<path d="M8.5 15.5 L16.5 23.5"/>' : v === 1 ? '<path d="M9 17 Q12 14 11 12 M15 23 Q18 20 20 21"/><path d="M10 16 L16 22"/>' : v === 2 ? '<path d="M8 16 L11 15 L17 21 L16 24"/>' : '<circle cx="12.5" cy="19.5" r="2.4"/>'; grip = '<path d="M11.5 20.5 L6 26"/><path d="M5 25 L7 27"/>'; }
+    // element mark (monochrome glyph, bottom right)
+    const M = { fire: '<path d="M27 29 Q24 26 26 23 Q27 25 28 24 Q30 27 27 29Z"/>', frost: '<path d="M27 22v7M23.8 23.8l6.4 3.4M30.2 23.8l-6.4 3.4"/>', thunder: '<path d="M28 21 L25 26 L28 26 L26 30"/>', star: '<path d="M27 21.5 L28 24.5 L31 25 L28.5 26.5 L29 29.5 L27 27.8 L25 29.5 L25.5 26.5 L23 25 L26 24.5Z"/>',
+      water: '<path d="M27 21.5 Q30 26 27 29 Q24 26 27 21.5Z"/>', wind: '<path d="M22.5 24 H28 Q30 24 29.5 22.5 M23.5 27 H30"/>', earth: '<path d="M23 29 L26 23 L28 26 L29 24.5 L31 29Z"/>', glass: '<path d="M27 21.5 L30 25.5 L27 29.5 L24 25.5Z M24 25.5 H30"/>', neon: '<path d="M23.5 29 V23 L29.5 29 V23"/>', holy: '<circle cx="27" cy="25.5" r="2"/><path d="M27 21v1.5M27 29v1.5M22.5 25.5H24M30 25.5h1.5"/>',
+      void: '<circle cx="27" cy="25.5" r="3.4"/><circle cx="27" cy="25.5" r="1.2" fill="currentColor"/>', rift: '<path d="M25 21.5 L28.5 25 L25.5 26 L29 30"/>', blood: '<path d="M27 21.5 Q30 26 27 29 Q24 26 27 21.5Z" fill="currentColor"/>', ash: '<path d="M23.5 28h7M24.5 25.5h5M25.5 23h3"/>', moss: '<path d="M27 30 V23 M27 26 Q24 25 24 22.5 Q26.5 22.5 27 25 M27 24.5 Q29.5 23 30.5 21.5"/>',
+      aurora: '<path d="M22.5 28 Q25 22 27 26 Q29 30 31 23"/>', mist: '<path d="M23 23.5h8M22.5 26h7M24 28.5h7"/>', time: '<circle cx="27" cy="25.5" r="3.4"/><path d="M27 23.5v2l1.5 1"/>', moon: '<path d="M28.5 22 A3.6 3.6 0 1 0 28.5 29 A2.8 2.8 0 1 1 28.5 22Z"/>', shadow: '<path d="M23 29 Q27 20 31 29 Q27 26 23 29Z"/>', steel: '<path d="M24 28 L30 22 M25.5 23.5 L28.5 26.5"/>' }[S.el] || '';
+    const col = (this.E[S.el] || this.E.steel).h.map(x => Math.round(Math.min(255, x * 85))).join(',');
+    return `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">${blade}${guard}${grip}<g stroke-width="1.2" opacity=".85">${M}</g></svg><i class="vel" style="--c:rgb(${col})"></i>`; } };
+window.__AZsig = Sig; window.__AZsigCombat = Combat;
+setTimeout(() => { try { Sig.hook(); if (Game.player) Gear.apply(Game.player); } catch (e) { console.warn('sig', e); } }, 0);
 
 /* =====================================================================
    13. GAME — state, loop, flow
