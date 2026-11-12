@@ -16943,7 +16943,7 @@ const Sig = {
   mats: {},
   // effect colours: the palettes are HDR (up to 3), which blooms to white on big surfaces; this keeps the hue
   sat(col) { const m = Math.max(...col, 1e-3); return col.map(v => Math.pow(Math.max(0, v) / m, 1.6) * 1.5); },
-  shock(p, r, col, dur, y) { FX.shock(p, r, this.sat(col).map(v => v * .42), dur, y); },
+  shock(p, r, col, dur, y) { FX.shock(p, r * .6, this.sat(col).map(v => v * .42), dur, y); },
   addMat(col, op = 1, b = 1) { const k = col.join(',') + op + '|' + b; if (this.mats[k]) return this.mats[k].clone(); return (this.mats[k] = new THREE.MeshBasicMaterial({ color: new THREE.Color(...this.sat(col).map(v => v * b * .8)), transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })).clone(); },
   solid(kind, col) { const k = 's' + kind + col.join(','); if (this.mats[k]) return this.mats[k];
     const base = { ice: [.55, .8, 1], rock: [.32, .27, .22], glass: [.85, .9, 1], dark: [.08, .06, .12], thorn: [.12, .2, .1], ember: [.18, .08, .05], steel: [.5, .52, .56] }[kind] || [.5, .5, .5];
@@ -16969,7 +16969,7 @@ const Sig = {
     let t = 0; this.cast(dt => { t += dt; const k = Math.max(0, 1 - t / .3); mat.opacity = k * (Math.random() < .3 ? .4 : 1); core.material.opacity = Math.max(0, 1 - t / .12); return t < .3; }, () => { scene.remove(m); scene.remove(core); geo.dispose(); mat.dispose(); core.material.dispose(); }); },
   // a column of light
   pillar(p, col, r = 1.2, h = 11, life = .6) { const geo = this.g('pillar', () => new THREE.CylinderGeometry(1, 1, 1, 20, 1, true).translate(0, .5, 0)); const mat = this.addMat(col, .9, .4); const m = new THREE.Mesh(geo, mat); m.position.copy(p); scene.add(m);
-    const core = new THREE.Mesh(geo, this.addMat(col, .9, .7)); core.position.copy(p); scene.add(core); Sig.shock(p, r * 2.6, col.map(v => v * .7), .45); Game.flashLight(_a.set(p.x, p.y + 3, p.z), col.map(v => v / 3), 24, .3);
+    const core = new THREE.Mesh(geo, this.addMat(col, .9, .7)); core.position.copy(p); scene.add(core); Sig.shock(p, r * 1.6, col.map(v => v * .7), .45); Game.flashLight(_a.set(p.x, p.y + 3, p.z), col.map(v => v / 3), 24, .3);
     let t = 0; this.cast(dt => { t += dt; const u = Math.min(1, t / .1), k = t < life ? 1 : Math.max(0, 1 - (t - life) / .3); m.scale.set(r * (1.3 - .3 * u) * k + .01, h * u, r * (1.3 - .3 * u) * k + .01); core.scale.set(r * .3 * k + .01, h * u, r * .3 * k + .01); mat.opacity = .2 * k; core.material.opacity = .55 * k;
       if (Math.random() < dt * 40) FX.sparks.emit(_a.set(p.x + rand(-r, r), p.y + rand(0, 4), p.z + rand(-r, r)), 1, { speed: 1, color: col, life: .6, size: .07, gravity: -3 }); return t < life + .3; }, () => { scene.remove(m); scene.remove(core); mat.dispose(); core.material.dispose(); }); },
   // a crescent that flies forward and cuts what it crosses
@@ -17072,7 +17072,7 @@ const Sig = {
           if (x.part && B.alive) Combat.applyToBoss(pl, x.part, dmg, dmg * .4, { hs: .1, shake: .35, big: true }, 'sig'); else if (x.h && x.h.alive) Hounds.damage(x.h, dmg * 1.4, pl.pos, { big: true, pl }); if (k >= 4 && S.el === 'thunder') Sig.bolt(x.p.clone().setY(Sig.gy(x.p.x, x.p.z)), col, 10); } }, 380); },
     // pillars of light along a line or around the target
     pillar(pl, k, S) { const col = S.E.h, T = Sig.tgt(pl, 18); const c = T ? T.p : Sig.at(pl, 6); const n = k >= 4 ? 5 : k, dmg = k >= 4 ? 90 : 58 + k * 18; Audio.play('perfect');
-      for (let i = 0; i < n; i++) { const a = i * 6.283 / Math.max(1, n - 1), r = i === 0 ? 0 : (k >= 4 ? 4 : 2.2); const p = new V3(c.x + Math.sin(a) * r, 0, c.z + Math.cos(a) * r); p.y = Sig.gy(p.x, p.z); setTimeout(() => { Sig.pillar(p, i === 0 ? S.E.c : col, i === 0 && k >= 4 ? 1.9 : 1.1, i === 0 && k >= 4 ? 16 : 11, k >= 4 ? .8 : .45); Audio.play('riftRelease'); Game.shake(.2); Sig.hit(pl, p.clone().setY(p.y + 1), i === 0 && k >= 4 ? 3.4 : 2.2, dmg, dmg * .35, new Set(), { hs: .08, tall: 8 }); }, i * (k >= 4 ? 110 : 140)); } },
+      for (let i = 0; i < n; i++) { const a = i * 6.283 / Math.max(1, n - 1), r = i === 0 ? 0 : (k >= 4 ? 4 : 2.2); const p = new V3(c.x + Math.sin(a) * r, 0, c.z + Math.cos(a) * r); p.y = Sig.gy(p.x, p.z); setTimeout(() => { Sig.pillar(p, i === 0 ? S.E.c : col, i === 0 && k >= 4 ? 1.5 : 1.1, i === 0 && k >= 4 ? 16 : 11, k >= 4 ? .8 : .45); Audio.play('riftRelease'); Game.shake(.2); Sig.hit(pl, p.clone().setY(p.y + 1), i === 0 && k >= 4 ? 3.4 : 2.2, dmg, dmg * .35, new Set(), { hs: .08, tall: 8 }); }, i * (k >= 4 ? 110 : 140)); } },
     // shards burst forward in a cone
     shards(pl, k, S) { const col = S.E.h, n = k >= 4 ? 26 : 8 + k * 4, dmg = k >= 4 ? 30 : 18 + k * 6, f0 = pl.yaw; const geo = Sig.g('shard', () => new THREE.OctahedronGeometry(.18, 0).scale(.6, .6, 2.2)); const mat = Sig.solid(S.E.m, col); Audio.play('break'); Game.shake(.25 + k * .05);
       const start = pl.pos.clone(); start.y = (pl.gy || 0) + 1.1; const L = []; for (let i = 0; i < n; i++) { const m = new THREE.Mesh(geo, mat); const yaw = f0 + rand(-.5, .5) * (k >= 4 ? 1.6 : 1), pitch = rand(-.08, .25); m.position.copy(start); m.rotation.set(-pitch, yaw, 0, 'YXZ'); scene.add(m); L.push({ m, v: new V3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(rand(18, 30)), seen: new Set() }); }
@@ -17087,7 +17087,7 @@ const Sig = {
     nova(pl, k, S) { const p = Sig.at(pl, k >= 4 ? 0 : 2.6); const R = k >= 4 ? 8 : 3 + k * .8, col = S.E.h, dmg = k >= 4 ? 190 : 64 + k * 30; const delay = k >= 4 ? .45 : 0; Audio.play(k >= 4 ? 'riftCharge' : 'explode'); let t = 0, done = false; if (k >= 4) pl.invuln = Math.max(pl.invuln, .9);
       const c = p.clone(); c.y += 1;
       Sig.cast(dt => { t += dt; if (t < delay) { if (Math.random() < .8) FX.sparks.emit(c, 3, { speed: 0, color: col, life: .3, size: .08, gravity: 0, jitter: 2.5 }); return true; }
-        if (!done) { done = true; Audio.play('explode'); Game.shake(.4 + k * .06); Game.punch(.6); Game.ca(.5); Game.flashLight(c, col.map(v => v / 3), 30, .35); Sig.ring(pl, p, col, R * .9, 0, 0, .35); Sig.shock(p, R * .55, col, .4);
+        if (!done) { done = true; Audio.play('explode'); Game.shake(.4 + k * .06); Game.punch(.6); Game.ca(.5); Game.flashLight(c, col.map(v => v / 3), 30, .35); Sig.ring(pl, p, col, R * .9, 0, 0, .35);
           FX.sparks.emit(c, 30, { speed: 11, color: col, life: .6, size: .08, gravity: -6 }); FX.sparks.emit(_a.set(p.x, p.y + .3, p.z), 30, { speed: 5, color: col, life: .9, size: .1, gravity: 4, up: 3, jitter: R * .4 }); FX.smoke.emit(c, 6, { speed: 3, color: [.32, .22, .2], life: 1.4, size: 1.6, gravity: .5, grow: 1.8, alpha: .45 });
           Sig.hit(pl, c, R, dmg, dmg * .4, new Set(), { hs: .12, shake: .5, tall: 4 }); }
         return false; }); },
