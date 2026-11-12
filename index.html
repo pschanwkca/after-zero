@@ -17146,7 +17146,7 @@ const Sig = {
   cache: {},
   moves(id, S) { if (this.cache[id]) return this.cache[id]; const D = Arms.build(); const base = D[S.cls] || PDEF; const M = this.styleMoves(S.cls, S.st, S.sp, base);
     // the finisher: the last cut releases the element
-    const last = M.light4 && S.st === 'rapid' ? 'light4' : 'light3'; if (M[last]) M[last] = { ...M[last], fx: 'sigFin' };
+    for (const last of ['light3', 'light4']) if (M[last]) M[last] = { ...M[last], fx: 'sigFin' };
     // charged heavy → this blade's technique (great swords: at the moment the blade lands)
     const hv = M.heavy; if (hv) { if (hv.cast) M.heavy = { ...hv, cast: 'sigHeavy' }; else M.heavy = { ...hv, release: hv.hit ? hv.hit[0] : hv.dur * .5, cast: 'sigHeavy' }; }
     if (M.rift) M.rift = S.Q[0] === 'shadow' ? { ...M.rift, cast: 'sigQ' } : { ...this.qPose(this.QP[S.Q[0]] || 'draw'), cast: 'sigQ' };
@@ -17185,7 +17185,7 @@ const Sig = {
       const t0 = VoidUI.tile.bind(VoidUI); VoidUI.tile = function (id) { const h = t0(id); const g = GEARDB[id]; if (!g || g.kind !== 'weapon') return h; const svg = Sig.icon(id); return svg ? h.replace(/<svg[\s\S]*?<\/svg>/, svg) : h; }; } catch (e) { console.warn('sig ui', e); }
     try { const s = document.createElement('style'); s.textContent = `.vsig{display:flex;gap:8px;flex-wrap:wrap;font:700 10px/1 var(--f-ui);letter-spacing:.24em;text-transform:uppercase;color:var(--v-ink3)}.vsig span{border:1px solid var(--v-hair);padding:5px 7px}.vsig .vsg-el{color:var(--v-ink);border-color:var(--c);box-shadow:inset 3px 0 0 var(--c)}
 .vmv{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:6px 8px;align-items:center;font:600 13px/1.2 var(--f-ui);color:var(--v-ink)}.vmv kbd{font:800 9px/1 var(--f-ui);letter-spacing:.12em;border:1px solid var(--v-ink3);color:var(--v-ink2);padding:4px 5px}
-.vt .vel{position:absolute;top:6px;left:6px;width:8px;height:8px;transform:rotate(45deg);background:var(--c);opacity:.9}`; document.head.appendChild(s); } catch (e) {} },
+.vt .vel{position:absolute;top:7px;left:7px;width:7px;height:7px;transform:rotate(45deg);background:var(--c);opacity:.9}.vt svg.vsw{width:62%;height:62%}`; document.head.appendChild(s); } catch (e) {} },
   // the element shows up on every hit
   hitFX(S, p, big) { const c = S.E.h; switch (S.el) {
       case 'frost': case 'mist': FX.sparks.emit(p, big ? 14 : 8, { speed: 4, color: c, life: .5, size: .06, gravity: -5, drag: 2.5 }); break;
@@ -17196,19 +17196,37 @@ const Sig = {
       case 'shadow': case 'void': case 'blood': FX.sparks.emit(p, big ? 14 : 8, { speed: 2.5, color: c, life: .6, size: .09, gravity: 0, drag: 3 }); break;
       default: FX.sparks.emit(p, big ? 12 : 6, { speed: 5, color: c, life: .35, size: .05, gravity: -8 }); } },
   // ---------------------------------------------------------------- an icon per blade: drawn from its class and shape, with an element mark
-  icon(id) { const g = GEARDB[id]; if (!g) return null; if (g.type === 'staff') return null; const S = this.of(id); if (!S) return null; const L = (g.look && g.look.len) || 1; let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-    const v = h % 4, len = 15 + (L - 1) * 30; const tip = [26, 6]; let blade, guard, grip, deco = '';
-    const ang = Math.atan2(-1, 1); const ux = Math.cos(ang), uy = Math.sin(ang); const B = (d) => [16 - ux * d * .5 + 0, 16 - uy * d * .5]; void B;
-    if (S.cls === 'great') { const w = 3.2; blade = `<path d="M7 25 L9 23 L23 7.5 L26.5 5.5 L24.5 9 L9 25 Z" stroke-linejoin="round"/><path d="M10 22 L22.5 8.5"/>${v % 2 ? '<path d="M17 13 L19 15 M19.5 10.5 L21.5 12.5"/>' : '<path d="M14 18 L16 20"/>'}`; guard = '<path d="M5 20 L12 27"/>'; grip = '<path d="M8 24 L3.5 28.5"/><circle cx="3" cy="29" r="1"/>'; void w; }
-    else if (S.cls === 'katana') { blade = `<path d="M8 24 Q19 15 27.5 4.5"/><path d="M9.5 25 Q20 16 27.5 4.5"/>`; guard = v % 2 ? '<ellipse cx="9" cy="23.5" rx="2.8" ry="1.6" transform="rotate(-40 9 23.5)"/>' : '<rect x="7" y="21.6" width="4" height="4" transform="rotate(45 9 23.6)"/>'; grip = '<path d="M7.5 25 L3.5 29"/><path d="M5 26.8 L6.3 28 M3.9 27.8 L5.2 29"/>'; }
-    else { const tipY = Math.max(3, 6 - (L - 1) * 20); blade = `<path d="M12 18 L25 5 L${27 + (L > 1.08 ? 1 : 0)} ${tipY - 1} L26 7 L13 20"/>`; guard = v === 0 ? '<path d="M8.5 15.5 L16.5 23.5"/>' : v === 1 ? '<path d="M9 17 Q12 14 11 12 M15 23 Q18 20 20 21"/><path d="M10 16 L16 22"/>' : v === 2 ? '<path d="M8 16 L11 15 L17 21 L16 24"/>' : '<circle cx="12.5" cy="19.5" r="2.4"/>'; grip = '<path d="M11.5 20.5 L6 26"/><path d="M5 25 L7 27"/>'; }
-    // element mark (monochrome glyph, bottom right)
-    const M = { fire: '<path d="M27 29 Q24 26 26 23 Q27 25 28 24 Q30 27 27 29Z"/>', frost: '<path d="M27 22v7M23.8 23.8l6.4 3.4M30.2 23.8l-6.4 3.4"/>', thunder: '<path d="M28 21 L25 26 L28 26 L26 30"/>', star: '<path d="M27 21.5 L28 24.5 L31 25 L28.5 26.5 L29 29.5 L27 27.8 L25 29.5 L25.5 26.5 L23 25 L26 24.5Z"/>',
-      water: '<path d="M27 21.5 Q30 26 27 29 Q24 26 27 21.5Z"/>', wind: '<path d="M22.5 24 H28 Q30 24 29.5 22.5 M23.5 27 H30"/>', earth: '<path d="M23 29 L26 23 L28 26 L29 24.5 L31 29Z"/>', glass: '<path d="M27 21.5 L30 25.5 L27 29.5 L24 25.5Z M24 25.5 H30"/>', neon: '<path d="M23.5 29 V23 L29.5 29 V23"/>', holy: '<circle cx="27" cy="25.5" r="2"/><path d="M27 21v1.5M27 29v1.5M22.5 25.5H24M30 25.5h1.5"/>',
-      void: '<circle cx="27" cy="25.5" r="3.4"/><circle cx="27" cy="25.5" r="1.2" fill="currentColor"/>', rift: '<path d="M25 21.5 L28.5 25 L25.5 26 L29 30"/>', blood: '<path d="M27 21.5 Q30 26 27 29 Q24 26 27 21.5Z" fill="currentColor"/>', ash: '<path d="M23.5 28h7M24.5 25.5h5M25.5 23h3"/>', moss: '<path d="M27 30 V23 M27 26 Q24 25 24 22.5 Q26.5 22.5 27 25 M27 24.5 Q29.5 23 30.5 21.5"/>',
-      aurora: '<path d="M22.5 28 Q25 22 27 26 Q29 30 31 23"/>', mist: '<path d="M23 23.5h8M22.5 26h7M24 28.5h7"/>', time: '<circle cx="27" cy="25.5" r="3.4"/><path d="M27 23.5v2l1.5 1"/>', moon: '<path d="M28.5 22 A3.6 3.6 0 1 0 28.5 29 A2.8 2.8 0 1 1 28.5 22Z"/>', shadow: '<path d="M23 29 Q27 20 31 29 Q27 26 23 29Z"/>', steel: '<path d="M24 28 L30 22 M25.5 23.5 L28.5 26.5"/>' }[S.el] || '';
+  icon(id) { const g = GEARDB[id]; if (!g || g.type === 'staff') return null; const S = this.of(id); if (!S) return null; const L = clamp((g.look && g.look.len) || 1, .95, 1.16); let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const r2 = n => Math.round(n * 100) / 100; const u = [Math.SQRT1_2, -Math.SQRT1_2], n = [Math.SQRT1_2, Math.SQRT1_2];
+    const great = S.cls === 'great', kat = S.cls === 'katana'; const G = great ? [10.2, 21.8] : [10.8, 21.2];
+    const P = (s, w, bend = 0) => { const x = G[0] + u[0] * s + n[0] * (w + bend), y = G[1] + u[1] * s + n[1] * (w + bend); return r2(x) + ' ' + r2(y); };
+    const Lb = (great ? 19.5 : kat ? 20.5 : 18) * L, W0 = great ? 2.7 : kat ? .95 : 1.35; const el = S.el;
+    const bend = s => kat ? -Math.pow(s / Lb, 2) * 2.4 : 0;
+    // the blade outline: edge side (+w) up to the tip, back side (−w) down to the guard
+    const leaf = el === 'moss' || el === 'wind' || el === 'aurora', flame = el === 'fire', saw = el === 'shadow' || el === 'void' || el === 'blood', chip = el === 'earth' || el === 'ash';
+    const width = s => { const k = s / Lb; let w = W0 * (great ? 1 - k * .18 : 1 - k * .35); if (leaf) w *= 1 + Math.sin(k * Math.PI) * .45; return w; };
+    const tipS = Lb + (great ? (h % 2 ? 0 : 1.2) : 2.2), N = 14; const edge = [], back = [];
+    for (let i = 0; i <= N; i++) { const s = Lb * i / N; let we = width(s), wb = -width(s); if (flame && i > 0 && i < N) we += Math.sin(i * 1.9) * .45; if (saw && i % 2 && i > 1 && i < N - 1) wb -= .7; if (chip && (i === 5 || i === 9)) we -= .55; edge.push(P(s, we, bend(s))); back.push(P(s, wb, bend(s))); }
+    const tip = great && h % 2 ? [P(Lb + .2, width(Lb) * .9, bend(Lb)), P(Lb + .6, -width(Lb), bend(Lb))] : [P(tipS, kat ? -.3 : 0, bend(tipS))];
+    let blade = `<path d="M${edge.join(' L')} L${tip.join(' L')} L${back.reverse().join(' L')} Z" stroke-linejoin="round"/>`;
+    // inner detail: fuller, facets, a lightning fuller, runes
+    let deco = ''; const facets = el === 'frost' || el === 'glass' || el === 'mist';
+    if (facets) { const pts = []; for (let i = 1; i < 8; i++) pts.push(P(Lb * i / 8.5, (i % 2 ? .45 : -.45) * width(Lb * i / 8.5), bend(Lb * i / 8.5))); deco = `<path d="M${pts.join(' L')}" stroke-width="1"/>`; }
+    else if (el === 'thunder') { const pts = []; for (let i = 1; i < 7; i++) pts.push(P(Lb * i / 7.5, (i % 2 ? .5 : -.5) * width(Lb * i / 7.5) * .9, bend(Lb * i / 7.5))); deco = `<path d="M${pts.join(' L')}" stroke-width="1.1"/>`; }
+    else if (el === 'rift' || el === 'neon' || el === 'time' || el === 'star' || el === 'holy' || el === 'moon') { const d = []; const k = h % 3 + 3; for (let i = 0; i < k; i++) { const s = Lb * (.22 + i * .55 / k); const q = P(s, 0, bend(s)).split(' '); d.push(`<circle cx="${q[0]}" cy="${q[1]}" r=".55" fill="currentColor" stroke="none"/>`); } deco = d.join(''); }
+    else if (!great || h % 2) deco = `<path d="M${P(Lb * .12, 0, bend(Lb * .12))} L${P(Lb * .72, 0, bend(Lb * .72))}" stroke-width="1"/>`;
+    // the guard
+    const gv = h % 4; const gw = great ? 5.2 : kat ? 2.2 : 4.2; let guard;
+    if (kat) guard = gv % 2 ? `<ellipse cx="${G[0]}" cy="${G[1]}" rx="2.6" ry="1.5" transform="rotate(45 ${G[0]} ${G[1]})"/>` : `<rect x="${G[0] - 1.6}" y="${G[1] - 1.6}" width="3.2" height="3.2" rx=".6" transform="rotate(45 ${G[0]} ${G[1]})"/>`;
+    else if (gv === 0) guard = `<path d="M${P(0, gw)} L${P(0, -gw)}"/>`;
+    else if (gv === 1) guard = `<path d="M${P(1.2, gw)} Q${P(0, gw * .5)} ${P(0, 0)} Q${P(0, -gw * .5)} ${P(1.2, -gw)}"/>`;
+    else if (gv === 2) guard = `<path d="M${P(-.8, gw)} L${P(.6, gw * .8)} L${P(.6, -gw * .8)} L${P(-.8, -gw)}"/>`;
+    else guard = `<path d="M${P(0, gw)} L${P(0, -gw)}"/><circle cx="${P(0, 0).split(' ')[0]}" cy="${P(0, 0).split(' ')[1]}" r="1.3"/>`;
+    // grip and pommel
+    const gl = great ? 6.2 : kat ? 6.8 : 5.4; const pm = P(-gl, 0).split(' ');
+    const grip = `<path d="M${P(-.6, 0)} L${P(-gl + .8, 0)}" stroke-width="${great ? 2.2 : 1.8}"/>` + (h % 3 === 0 ? `<circle cx="${pm[0]}" cy="${pm[1]}" r="1.1"/>` : h % 3 === 1 ? `<rect x="${+pm[0] - .9}" y="${+pm[1] - .9}" width="1.8" height="1.8" transform="rotate(45 ${pm[0]} ${pm[1]})"/>` : `<path d="M${P(-gl + .4, 1.2)} L${P(-gl + .4, -1.2)}"/>`);
     const col = (this.E[S.el] || this.E.steel).h.map(x => Math.round(Math.min(255, x * 85))).join(',');
-    return `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">${blade}${guard}${grip}<g stroke-width="1.2" opacity=".85">${M}</g></svg><i class="vel" style="--c:rgb(${col})"></i>`; } };
+    return `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" class="vsw">${blade}${deco}${guard}${grip}</svg><i class="vel" style="--c:rgb(${col})"></i>`; } };
 window.__AZsig = Sig; window.__AZsigCombat = Combat;
 setTimeout(() => { try { Sig.hook(); if (Game.player) Gear.apply(Game.player); } catch (e) { console.warn('sig', e); } }, 0);
 
