@@ -1252,7 +1252,7 @@ html.touch #photo .ph-head b{font-size:20px}
     <div id="langSw" data-noi18n><button data-lang="en">EN</button><button data-lang="zh">繁中</button></div>
     <div class="titlewrap">
       <div class="tmark">
-        <small>Rift Hunter field prototype · Build 3.26</small>
+        <small>Rift Hunter field prototype · Build 3.27</small>
         <h1>AFTER<em>ZERO</em></h1>
         <p class="tline"><span></span>WHEN REALITY ENDS, THE HUNT BEGINS.<span></span></p>
       </div>
@@ -1433,7 +1433,7 @@ const ZH_DICT={"Hunt time":"狩獵時間","Damage dealt":"造成傷害","Damage 
 "Autosave":"自動存檔","Autosave runs at every checkpoint":"每個檢查點都會自動存檔","SAVE GAME":"儲存遊戲","Save game":"儲存遊戲","Saved in this browser":"儲存在此瀏覽器","SETTINGS":"設定",
 "Volume":"音量","Mouse speed":"滑鼠速度","Invert Y":"反轉 Y 軸","Camera shake":"鏡頭震動","Mute audio":"靜音","Game saved":"遊戲已儲存","Game loaded":"遊戲已讀取","Save failed":"儲存失敗","Saving":"儲存中",
 "PAUSED":"已暫停","Resume hunt":"繼續狩獵","Restart the First Hunt":"重新開始初次狩獵","Return to title":"返回標題","Hunt suspended":"狩獵暫停","Close":"關閉","Back":"返回","Choose":"選擇","Current":"目前",
-"Rift Hunter field prototype · Build 3.26":"裂隙獵人 實地原型 · Build 3.26","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
+"Rift Hunter field prototype · Build 3.27":"裂隙獵人 實地原型 · Build 3.27","Rift Haven · Contract 0-17 · First Hunt":"裂隙庇護所 · 委託 0-17 · 初次狩獵",
 "AFTER ZERO needs a keyboard and mouse on a desktop browser.":"AFTER ZERO 需要在桌面瀏覽器使用鍵盤與滑鼠。","The 3D engine could not load. Check your connection and reload the page.":"3D 引擎無法載入，請檢查網絡後重新整理頁面。",
 "Opening the breach…":"正在開啟裂隙……","Press any key to skip":"按任意鍵跳過",
 "Your progress is autosaved at every checkpoint":"你的進度會在每個檢查點自動儲存","LEAVE AFTER ZERO?":"離開 AFTER ZERO？",
@@ -17229,6 +17229,109 @@ const Sig = {
     return `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" class="vsw">${blade}${deco}${guard}${grip}</svg><i class="vel" style="--c:rgb(${col})"></i>`; } };
 window.__AZsig = Sig; window.__AZsigCombat = Combat;
 setTimeout(() => { try { Sig.hook(); if (Game.player) Gear.apply(Game.player); } catch (e) { console.warn('sig', e); } }, 0);
+/* =====================================================================
+   BUILD 3.27 · CINEMA PASS — RUINED CITY (sample world)
+   A fidelity pass on one world, to judge before it goes to the other five. Nothing about the art style changes;
+   what changes is how surfaces answer light:
+   · Image-based lighting: the city now has an environment (a night sky, a warm horizon, neon spill; a second one
+     for daytime). Every lit surface picks up soft reflections from it — metal reads as metal, glass as glass.
+   · Wet streets: standing puddles on flat ground. Inside a puddle the surface is a dark mirror (flat, smooth,
+     reflective); around it the asphalt keeps a damp sheen. Rain fills them, sun dries them, night keeps them.
+   · Light in the air: every street lamp throws a visible shaft through the haze and carries a soft halo; neon
+     signs spill their colour onto the ground beneath them.
+   ===================================================================== */
+const Cinema = {
+  U: { uWet: { value: new THREE.Vector3(.6, .7, 0) } }, // x puddle threshold · y wetness 0–1 · z time
+  on: false, envN: null, envD: null, cur: null,
+  // ---- the environment: a tiny procedural scene, pre-filtered once
+  mkEnv(day) { const sc = new THREE.Scene(); const top = day ? [.2, .3, .5] : [.012, .02, .045], hor = day ? [.36, .36, .36] : [.1, .07, .095], gnd = day ? [.12, .11, .1] : [.02, .02, .024];
+    sc.add(new THREE.Mesh(new THREE.SphereGeometry(50, 24, 12), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false,
+      uniforms: { a: { value: new THREE.Color(...top) }, b: { value: new THREE.Color(...hor) }, c: { value: new THREE.Color(...gnd) } },
+      vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+      fragmentShader: 'varying vec3 vD; uniform vec3 a, b, c; void main(){ float h = vD.y; vec3 col = h > 0. ? mix(b, a, pow(h, .45)) : mix(b, c, pow(-h, .3)); gl_FragColor = vec4(col, 1.); }' })));
+    const panel = (az, el, w, h, col, k) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col[0] * k, col[1] * k, col[2] * k), side: THREE.DoubleSide })); const r = 40; m.position.set(Math.sin(az) * Math.cos(el) * r, Math.sin(el) * r, Math.cos(az) * Math.cos(el) * r); m.lookAt(0, 0, 0); sc.add(m); };
+    if (day) { panel(-2.2, .7, 8, 8, [1, .95, .85], 5); }
+    else { // neon and sodium light from the streets, the rift's cyan, a cold moon
+      const N = [[.3, .12, 14, 5, [.25, .9, 1], 2.4], [1.5, .1, 10, 6, [1, .25, .8], 2.2], [2.6, .14, 16, 4, [1, .62, .3], 2.6], [3.9, .1, 9, 6, [.3, .95, 1], 1.8], [5.1, .12, 12, 5, [1, .3, .35], 1.8], [5.8, .2, 8, 4, [1, .7, .4], 2.2], [.95, .5, 5, 16, [.3, .85, 1], 1.6], [-2.2, .9, 5, 5, [.75, .82, 1], 3]];
+      for (const p of N) panel(...p); }
+    const pm = new THREE.PMREMGenerator(renderer); const rt = pm.fromScene(sc, .035); pm.dispose(); sc.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); return rt.texture; },
+  // ---- wet ground: chained after the surface-detail shader (which supplies world position and normal)
+  wet(W) { let n = 0; const done = new Set(); W.group.traverse(o => { if (!o.isMesh || o.isSkinnedMesh) return; const L = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of L) { if (!m || done.has(m) || !m.userData.det || m.userData.cineWet || !m.isMeshStandardMaterial || m.transparent) continue; done.add(m); m.userData.cineWet = 1; n++;
+        const prev = m.onBeforeCompile, pk = m.customProgramCacheKey; const prevKey = pk && pk !== THREE.Material.prototype.customProgramCacheKey ? pk.bind(m) : null;
+        m.onBeforeCompile = (sh, r) => { if (prev) prev.call(m, sh, r); if (sh.fragmentShader.indexOf('varying vec3 vDW') < 0 || sh.fragmentShader.indexOf('float azn(') < 0) return; sh.uniforms.uWet = Cinema.U.uWet;
+          sh.fragmentShader = 'uniform vec3 uWet; float cinePud;\n' + sh.fragmentShader.replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+  { float cup = smoothstep(.86, .985, normalize(vDN).y) * (1. - smoothstep(5., 8., vDW.y)); vec2 cg = vDW.xz;
+    float cn = azn(cg * .19 + 3.7) * .5 + azn(cg * .47 + 11.) * .32 + azn(cg * 1.3) * .18;
+    float cfar = 1. - smoothstep(70., 120., distance(vDW, cameraPosition));
+    cinePud = smoothstep(uWet.x, uWet.x + .07, cn) * cup * uWet.y * cfar;
+    float damp = cup * uWet.y * (.35 + .4 * azn(cg * .4 + 20.));
+    roughnessFactor = mix(roughnessFactor, max(roughnessFactor, .44), cup * uWet.y); diffuseColor.rgb *= mix(1., .74, damp);
+    roughnessFactor = mix(roughnessFactor, .045, cinePud); metalnessFactor = mix(metalnessFactor, 1., cinePud * .92);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.15, .16, .19), cinePud * .92); }`).replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+  #ifndef FLAT_SHADED
+  { vec3 cflat = normalize(vNormal); cflat *= faceDirection;
+    vec2 crp = vDW.xz * 2.4 + vec2(uWet.z * .35, uWet.z * .22); cflat.xy += (vec2(azn(crp), azn(crp + 9.1)) - .5) * .012;
+    normal = normalize(mix(normal, cflat, cinePud)); }
+  #endif`); };
+        m.customProgramCacheKey = () => (prevKey ? prevKey() : '') + '|wet1'; m.needsUpdate = true; } }); return n; },
+  // ---- light in the air
+  air(W) { const g = new THREE.Group(); g.name = 'cineAir'; W.group.add(g); W._cine = g; W.group.updateMatrixWorld(true); const heads = [], p = new V3();
+    W.group.traverse(o => { if (o.isMesh && o.material === MAT.warmGlow && o.name !== 'batch') { o.getWorldPosition(p); if (p.y > 3 && p.y < 9) heads.push(p.clone()); } });
+    // street lamps that the batcher merged away: their pools remain as fallback anchors
+    if (heads.length < 4) for (const [x, z, s] of [[-7.8, -110, 1], [7.8, -96, -1], [-7.8, -82, 1], [7.8, -58, -1], [-7.8, -44, 1], [20, -74.6, 0], [38, -87.4, 0], [56, -74.6, 0], [72, -87.4, 0]]) heads.push(new V3(x + s * 1.45, 5.85, z));
+    const uniq = []; for (const h of heads) if (!uniq.some(q => q.distanceTo(h) < 1.5)) uniq.push(h); const H = uniq.slice(0, 40);
+    if (H.length) { // shafts: one instanced cone, brightest where you look through its length
+      const geo = new THREE.CylinderGeometry(.16, 1, 1, 20, 1, true).translate(0, -.5, 0);
+      const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uCol: { value: new THREE.Color(1, .66, .36) }, uK: { value: .2 }, uT: this.U.uWet },
+        vertexShader: `varying vec3 vN; varying vec3 vV; varying float vH; varying vec3 vWp;
+          void main(){ mat4 mm = modelMatrix;
+          #ifdef USE_INSTANCING
+            mm = modelMatrix * instanceMatrix;
+          #endif
+            vec4 wp = mm * vec4(position, 1.); vWp = wp.xyz; vN = normalize(mat3(mm) * vec3(normal.x, 0., normal.z)); vV = cameraPosition - wp.xyz; vH = -position.y; gl_Position = projectionMatrix * viewMatrix * wp; }`,
+        fragmentShader: `varying vec3 vN; varying vec3 vV; varying float vH; varying vec3 vWp; uniform vec3 uCol; uniform float uK; uniform vec3 uT;
+          float h1(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float n1(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(h1(i), h1(i + vec2(1, 0)), f.x), mix(h1(i + vec2(0, 1)), h1(i + 1.), f.x), f.y); }
+          void main(){ float d = length(vV); float f = abs(dot(normalize(vN), normalize(vV))); float a = pow(f, 2.2) * (1. - vH) * (1. - vH * .4) * smoothstep(0., .06, vH);
+            a *= .7 + .5 * n1(vec2(vWp.x * .6 + vWp.z * .6, vWp.y * .5 - uT.z * .12)); a *= smoothstep(1.2, 4., d) * (1. - smoothstep(60., 105., d));
+            gl_FragColor = vec4(uCol * a * uK, 1.); }` });
+      const im = new THREE.InstancedMesh(geo, mat, H.length); const M = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new V3();
+      H.forEach((h, i) => { const gy = W.heightAt ? W.heightAt(h.x, h.z) : 0; const hh = Math.max(2, h.y - gy - .05); M.compose(new V3(h.x, h.y - .05, h.z), q, s.set(hh * .5, hh, hh * .5)); im.setMatrixAt(i, M); });
+      im.frustumCulled = false; im.renderOrder = 6; im.userData.noRim = 1; g.add(im); this.shaft = mat;
+      // halos: one point cloud
+      const pos = new Float32Array(H.length * 3); H.forEach((h, i) => pos.set([h.x, h.y - .1, h.z], i * 3)); const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const halo = new THREE.Points(pg, new THREE.PointsMaterial({ map: TEX.glow, color: new THREE.Color(1, .62, .32), size: 5.5, sizeAttenuation: true, transparent: true, opacity: .34, blending: THREE.AdditiveBlending, depthWrite: false, fog: true })); halo.frustumCulled = false; halo.renderOrder = 6; g.add(halo); this.halo = halo.material; }
+    // neon spill: every bright sign lays a pool of its own colour on the ground below it (one merged mesh)
+    const cells = new Map(), c = new THREE.Color(), sp = new THREE.Sphere();
+    W.group.traverse(o => { if (!o.isMesh || o === W.sky || o.name === 'batch' && !o.material) return; const m = o.material; if (!m || Array.isArray(m) || !m.isMeshBasicMaterial || !m.color || m === MAT.warmGlow) return; if (m.blending === THREE.AdditiveBlending && m.map === TEX.glow) return;
+      c.copy(m.color); const mx = Math.max(c.r, c.g, c.b); if (mx < 1.25) return; const sat = mx - Math.min(c.r, c.g, c.b); if (sat < mx * .35) return; if (!o.geometry) return; if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); sp.copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld);
+      if (sp.center.y < 1.6 || sp.center.y > 14 || sp.radius < .5 || sp.radius > 9) return; const k = Math.round(sp.center.x / 5) + ',' + Math.round(sp.center.z / 5); const e = cells.get(k) || { x: 0, z: 0, r: 0, g: 0, b: 0, n: 0, y: 0 };
+      e.x += sp.center.x; e.z += sp.center.z; e.y += sp.center.y; e.r += c.r / mx; e.g += c.g / mx; e.b += c.b / mx; e.n++; cells.set(k, e); });
+    const L = [...cells.values()].slice(0, 90); if (L.length) { const P = [], Cc = [], Uv = [], Ix = [];
+      L.forEach((e, i) => { const x = e.x / e.n, z = e.z / e.n, r = 3.2 + Math.min(2.5, e.y / e.n * .25), y = (W.heightAt ? W.heightAt(x, z) : 0) + .045 + (i % 5) * .002; const b = i * 4;
+        P.push(x - r, y, z - r, x + r, y, z - r, x + r, y, z + r, x - r, y, z + r); Uv.push(0, 0, 1, 0, 1, 1, 0, 1); for (let j = 0; j < 4; j++) Cc.push(e.r / e.n, e.g / e.n, e.b / e.n); Ix.push(b, b + 2, b + 1, b, b + 3, b + 2); });
+      const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); sg.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3)); sg.setAttribute('uv', new THREE.Float32BufferAttribute(Uv, 2)); sg.setIndex(Ix);
+      const spill = new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ map: TEX.glow, vertexColors: true, transparent: true, opacity: .2, blending: THREE.AdditiveBlending, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -3 })); spill.frustumCulled = false; spill.renderOrder = 2; spill.userData.noRim = 1; g.add(spill); this.spill = spill.material; }
+    this.stats = { lamps: H.length, spills: L.length }; },
+  // reflections stay subtle on walls and props, stronger on ground-like surfaces
+  tune(W) { W.group.traverse(o => { if (!o.isMesh) return; const L = Array.isArray(o.material) ? o.material : [o.material]; for (const m of L) if (m && m.isMeshStandardMaterial && m.userData.cineE == null) { m.userData.cineE = m.envMapIntensity; m.envMapIntensity = .75; } }); },
+  enter(W) { this.on = true; this.W = W; if (!W._cineB) { W._cineB = 1; for (const m of W.wetMats || []) if (m.bumpScale) m.bumpScale *= .45; } try { if (!this.envN) this.envN = this.mkEnv(false); this.cur = this.envN; scene.environment = this.envN; } catch (e) { console.warn('cinema env', e); }
+    try { if (!W._cine) this.air(W); } catch (e) { console.warn('cinema air', e); } try { this.tune(W); } catch (e) {} },
+  leave() { if (!this.on) return; this.on = false; scene.environment = null; this.cur = null; },
+  t: 0, acc: 0,
+  tick(dt) { const W = Game.world; if (!W) return; const city = W.id === 'city'; if (city !== this.on) { if (city) this.enter(W); else this.leave(); } if (!city) return;
+    this.t += dt; this.U.uWet.value.z = this.t; this.acc -= dt; if (this.acc > 0) return; this.acc = .5;
+    if (W._det && !W._wetDone) { try { this.wet(W); this.tune(W); } catch (e) { console.warn('cinema wet', e); } W._wetDone = 1; }
+    const dk = W.dayK || 0; let rain = 0; try { rain = Weather.k || 0; } catch (e) {}
+    // puddles: more of them and fuller in rain; a few always remain; the sun dries the sheen
+    const wet = clamp(.55 + rain * .6 - dk * .25, .3, 1); const u = this.U.uWet.value; u.y += (wet - u.y) * .2; u.x += ((.6 - rain * .12) - u.x) * .2;
+    // day and night environments
+    const want = dk > .5 ? 'd' : 'n'; if (want === 'd' && !this.envD) { try { this.envD = this.mkEnv(true); } catch (e) { this.envD = this.envN; } } const tex = want === 'd' ? this.envD : this.envN; if (tex && tex !== this.cur) { this.cur = tex; scene.environment = tex; }
+    const night = 1 - dk; if (this.shaft) this.shaft.uniforms.uK.value = .06 + .26 * night; if (this.halo) this.halo.opacity = .08 + .28 * night; if (this.spill) this.spill.opacity = .05 + .17 * night; },
+  hook() { if (this._h) return; this._h = 1; const tk = Game.tick.bind(Game); Game.tick = function (dt, now) { const r = tk(dt, now); try { Cinema.tick(Math.max(0, Math.min(.1, dt || 0))); } catch (e) { if (!Cinema._w) { Cinema._w = 1; console.warn('cinema', e); } } return r; }; } };
+window.__AZcine = Cinema; window.__AZday = DayClock;
+setTimeout(() => { try { Cinema.hook(); } catch (e) { console.warn('cinema', e); } }, 0);
 
 /* =====================================================================
    13. GAME — state, loop, flow
